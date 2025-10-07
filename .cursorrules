@@ -1,0 +1,134 @@
+# SeleniumBase Projesi Cursor Rules
+
+## Proje Genel Kuralları
+- Bu proje SeleniumBase framework'ü kullanır
+- Türkçe yorumlar ve mesajlar kullanılır
+- Proxy desteği her zaman dahil edilir
+- Kod basit ve anlaşılır olmalıdır
+
+## SeleniumBase Kullanım Kuralları
+
+### Import ve Başlangıç
+```python
+from seleniumbase import Driver
+# veya test için:
+from seleniumbase import BaseCase
+BaseCase.main(__name__, __file__)
+```
+
+### Driver Oluşturma
+- Her zaman proxy ile çalış ve İngilizce locale kullan:
+```python
+driver = Driver(headless=False, proxy="user:pass@host:port", locale="en")
+```
+
+### Temel Metodlar
+- `driver.get(url)` - Sayfaya git
+- `driver.type(selector, text)` - Metin yaz
+- `driver.click(selector)` - Tıklama
+- `driver.sleep(seconds)` - Bekleme
+- `driver.quit()` - Tarayıcıyı kapat
+
+### Bekleme ve Kontrol
+- `driver.wait_for_element(selector)` - Element bekle
+- `driver.is_element_visible(selector)` - Element görünür mü?
+- `driver.is_text_visible(text)` - Metin görünür mü?
+
+### Dosya Kaydetme
+- `driver.save_screenshot_to_logs()` - Ekran görüntüsü
+- `driver.save_page_source_to_logs()` - Sayfa kaynağı
+- `driver.save_as_pdf_to_logs()` - PDF olarak kaydet
+
+### Gelişmiş Özellikler
+- UC Mode: `Driver(uc=True)` - Stealth mode
+- CDP Mode: `driver.activate_cdp_mode(url)` - Chrome DevTools Protocol
+- Headless: `Driver(headless=True)` - Arka plan modu
+
+## Kod Yapısı Kuralları
+
+### Fonksiyon Yapısı
+```python
+def fonksiyon_adi():
+    """Fonksiyon açıklaması"""
+    try:
+        driver = Driver(headless=False, proxy="proxy_url", locale="en")
+        # İşlemler
+        driver.quit()
+    except Exception as e:
+        print(f"Hata: {e}")
+        if 'driver' in locals():
+            driver.quit()
+```
+
+### Test Yapısı (pytest için)
+```python
+class TestClass(BaseCase):
+    def test_fonksiyon(self):
+        self.open("https://example.com")
+        self.type("#input", "metin")
+        self.click("#button")
+        self.assert_element("#result")
+```
+
+## Proxy Kuralları
+- Proxy formatı: `"user:pass@host:port"`
+- Proxy her zaman gerekli
+- Proxy hatalarında alternatif proxy dene
+
+## Hata Yönetimi
+- Her fonksiyonda try-except kullan
+- Driver'ı her zaman kapat
+- Hata mesajlarını Türkçe yaz
+
+## Performans Kuralları
+- Gereksiz bekleme sürelerini minimize et
+- Headless mode'u gerektiğinde kullan
+- Screenshot'ları sadece gerektiğinde al
+
+## Güvenlik Kuralları
+- Proxy bilgilerini kodda hardcode etme
+- Environment variables kullan
+- Hassas bilgileri .env dosyasında tut
+
+## Dosya Organizasyonu
+- Ana script: `google_selenium.py`
+- Test dosyaları: `test_*.py`
+- Konfigürasyon: `config.py`
+- Gereksinimler: `requirements.txt`
+
+## Debugging Kuralları
+- `driver.sleep()` ile debug için bekleme ekle
+- Screenshot alarak durumu kontrol et
+- Console'da detaylı log mesajları yazdır
+
+## Örnek Kullanım
+```python
+from seleniumbase import Driver
+import time
+
+def main():
+    proxy = "user:pass@host:port"
+    driver = Driver(headless=False, proxy=proxy, locale="en")
+    
+    try:
+        driver.get("https://example.com")
+        driver.sleep(2)
+        print("Sayfa yüklendi!")
+        
+        # İşlemler
+        input("Devam etmek için Enter'a basın...")
+        
+    except Exception as e:
+        print(f"Hata: {e}")
+    finally:
+        driver.quit()
+
+if __name__ == "__main__":
+    main()
+```
+
+## Notlar
+- SeleniumBase'in kendi metodlarını kullan, standart Selenium metodları yerine
+- UC Mode ve CDP Mode özelliklerini gerektiğinde kullan
+- Test framework'ü olarak pytest kullan
+- Dokümantasyon: https://seleniumbase.io/
