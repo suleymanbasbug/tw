@@ -24,9 +24,9 @@ class TwitterSignup(BaseCase):
         
         # Yazma işlemi
         if speed == "slow":
-            # Yavaş yazma için karakter karakter
+            # Yavaş yazma için karakter karakter - press_keys ile
             for char in text:
-                self.cdp.type(selector, char)
+                self.cdp.press_keys(selector, char)
                 time.sleep(random.uniform(0.2, 0.4))
         else:
             # Normal ve hızlı yazma için press_keys kullan
