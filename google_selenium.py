@@ -1,33 +1,50 @@
 import time
 from seleniumbase import BaseCase
 from mail_password import get_verification_code
+from user_agents import USER_AGENTS
 import random
 
 class TwitterSignup(BaseCase):
     
+    def get_random_user_agent(self):
+        """Random user agent seçimi"""
+        return random.choice(USER_AGENTS)
+    
     def human_like_page_load(self):
         """İnsan benzeri sayfa yükleme davranışı"""
-        # Sayfa yüklenirken makul bekleme
-        time.sleep(random.uniform(2.0, 4.0))
-        
-        # Sayfa yüklenme animasyonlarını taklit et
-        self.execute_script("window.scrollTo(0, 0);")
-        time.sleep(random.uniform(1.0, 2.0))
-        
-        # Çok detaylı sayfa keşfi
-        for _ in range(random.randint(5, 8)):
-            scroll_amount = random.randint(30, 100)
-            self.execute_script(f"window.scrollBy(0, {scroll_amount});")
-            time.sleep(random.uniform(0.5, 1.5))
+        try:
+            # Sayfa yüklenirken makul bekleme
+            time.sleep(random.uniform(2.0, 4.0))
             
-            # Bazen çok küçük geri scroll
-            if random.random() < 0.3:
-                self.execute_script(f"window.scrollBy(0, -{scroll_amount//2});")
-                time.sleep(random.uniform(0.3, 0.7))
-        
-        # Başa dön
-        self.execute_script("window.scrollTo(0, 0);")
-        time.sleep(random.uniform(1.0, 2.0))
+            # Sayfa yüklenme animasyonlarını taklit et
+            self.execute_script("window.scrollTo(0, 0);")
+            time.sleep(random.uniform(1.0, 2.0))
+            
+            # Çok detaylı sayfa keşfi
+            scroll_count = random.randint(3, 5)  # Daha az scroll
+            for i in range(scroll_count):
+                scroll_amount = random.randint(50, 150)  # Daha büyük scroll
+                self.execute_script(f"window.scrollBy(0, {scroll_amount});")
+                time.sleep(random.uniform(0.8, 1.5))
+                
+                # Bazen çok küçük geri scroll
+                if random.random() < 0.3:
+                    # Güvenli geri scroll
+                    back_scroll = max(10, scroll_amount // 3)
+                    self.execute_script(f"window.scrollBy(0, -{back_scroll});")
+                    time.sleep(random.uniform(0.5, 1.0))
+            
+            # Başa dön
+            self.execute_script("window.scrollTo(0, 0);")
+            time.sleep(random.uniform(1.0, 2.0))
+            
+        except Exception as e:
+            print(f"human_like_page_load içinde hata: {e}")
+            # Basit scroll yap
+            self.execute_script("window.scrollTo(0, 100);")
+            time.sleep(1)
+            self.execute_script("window.scrollTo(0, 0);")
+            time.sleep(1)
     
     def human_like_scroll(self):
         """İnsan benzeri scroll davranışı - çok detaylı"""
@@ -41,7 +58,10 @@ class TwitterSignup(BaseCase):
             
             # Sık geri scroll (insan davranışı)
             if random.random() < 0.6:
-                back_scroll = random.randint(20, scroll_amount // 3)
+                # Güvenli aralık kontrolü
+                max_back_scroll = max(10, scroll_amount // 3)
+                min_back_scroll = min(10, max_back_scroll)
+                back_scroll = random.randint(min_back_scroll, max_back_scroll)
                 self.execute_script(f"window.scrollBy(0, -{back_scroll});")
                 time.sleep(random.uniform(1.0, 2.0))
         
@@ -184,7 +204,9 @@ class TwitterSignup(BaseCase):
             
             # Bazen geri scroll
             if random.random() < 0.4:
-                self.execute_script(f"window.scrollBy(0, -{scroll_amount//2});")
+                # Güvenli geri scroll
+                back_scroll = max(5, scroll_amount // 2)
+                self.execute_script(f"window.scrollBy(0, -{back_scroll});")
                 time.sleep(random.uniform(1.0, 2.0))
         
         # Başa dön
@@ -192,96 +214,120 @@ class TwitterSignup(BaseCase):
         time.sleep(random.uniform(1.0, 2.0))
     
     def test_signup(self):
-        email_address = "xscmfwnu@vargosmail.com"
-        password = "bnycmoflS!4565"
-        
-        # Minimal stealth mode
-        self.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        self.execute_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})")
-        self.execute_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
-        
-        # UC Mode ile gizli şekilde sayfayı aç
-        self.uc_open_with_reconnect("https://x.com/i/flow/signup", reconnect_time=4)
-        
-        # CAPTCHA kontrolü ve bypass
-        self.uc_gui_click_captcha()
-        
-        # İnsan benzeri sayfa yükleme davranışı
-        self.human_like_page_load()
-        
-        # İnsan benzeri scroll davranışı
-        self.human_like_scroll()
-        
-        # İnsan okuma davranışı simülasyonu
-        self.simulate_human_reading()
-        
-        # Create account butonunu bul ve UC Mode ile tıkla
-        self.wait_for_element('button:contains("Create account")', timeout=20)
-        self.uc_click('button:contains("Create account")')
-        print("Create account butonu UC Mode ile tıklandı!")
-
-        # Sayfanın yüklenmesini bekle
-        time.sleep(random.uniform(2.0, 4.0))
-
-        # Use email instead butonunu bul ve tıkla
-        self.wait_for_element('button:contains("Use email instead")', timeout=20)
-        self.human_like_button_interaction('button:contains("Use email instead")', "Use email instead")
-
-        # Sayfanın yüklenmesini bekle
-        time.sleep(random.uniform(2.0, 4.0))
-
-        # Name input'una "hasan" yaz
-        self.human_like_form_interaction('input[name="name"]', "hasan", "text")
-
-        # Email input'una email yaz
-        time.sleep(random.uniform(2.0, 4.0))
-        self.human_like_form_interaction('input[name="email"]', email_address, "email")
-
-        # Ay seçimi - June seç
-        time.sleep(random.uniform(2.0, 4.0))
-        self.human_like_dropdown_interaction('select[id="SELECTOR_1"]', "June", "Ay")
-
-        # Gün seçimi - 27 seç
-        time.sleep(random.uniform(1.5, 3.0))
-        self.human_like_dropdown_interaction('select[id="SELECTOR_2"]', "27", "Gün")
-
-        # Yıl seçimi - 1984 seç
-        time.sleep(random.uniform(1.5, 3.0))
-        self.human_like_dropdown_interaction('select[id="SELECTOR_3"]', "1984", "Yıl")
-
-        # Next butonuna tıkla
-        time.sleep(random.uniform(3.0, 6.0))
-        self.human_like_button_interaction('button:contains("Next")', "Next")
-
-        # E-posta doğrulama sayfasını bekle
-        time.sleep(random.uniform(3.0, 5.0))
-        print("Doğrulama kodu gönderildi!")
-        
-        # Doğrulama kodunu al
-        time.sleep(random.uniform(2.0, 4.0))
-        print("E-posta doğrulama kodu bekleniyor...")
-        verification_code = get_verification_code(email_address, password)
-        
-        if verification_code:
-            print(f"Doğrulama kodu alındı: {verification_code}")
+        try:
+            email_address = "xscmfwnu@vargosmail.com"
+            password = "bnycmoflS!4565"
             
-            # Doğrulama kodunu input'a yaz
+            # Random user agent seçimi
+            random_user_agent = self.get_random_user_agent()
+            print(f"Seçilen User Agent: {random_user_agent}")
+            
+            # User agent ayarını yap
+            self.execute_script(f"Object.defineProperty(navigator, 'userAgent', {{get: () => '{random_user_agent}'}})")
+            
+            # Minimal stealth mode
+            self.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            self.execute_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})")
+            self.execute_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
+            
+            print("Stealth mode ayarları yapıldı!")
+            
+            # Normal mode ile sayfayı aç
+            print("Twitter signup sayfası açılıyor...")
+            self.open("https://x.com/i/flow/signup")
+            print("Sayfa başarıyla açıldı!")
+            
+            # Sayfa yüklenmesini bekle
             time.sleep(random.uniform(3.0, 5.0))
-            self.human_like_form_interaction('input[name="verfication_code"]', verification_code, "verification")
             
+            # Sayfa yüklenmesini kısa bekle
+            time.sleep(random.uniform(2.0, 3.0))
+            
+            # Create account butonunu bul ve UC Mode ile tıkla
+            print("Create account butonu aranıyor...")
+            self.wait_for_element('button:contains("Create account")', timeout=20)
+            self.uc_click('button:contains("Create account")')
+            print("Create account butonu UC Mode ile tıklandı!")
+
+            # Sayfanın yüklenmesini bekle
+            time.sleep(random.uniform(2.0, 4.0))
+
+            # Use email instead butonunu bul ve tıkla
+            print("Use email instead butonu aranıyor...")
+            self.wait_for_element('button:contains("Use email instead")', timeout=20)
+            self.human_like_button_interaction('button:contains("Use email instead")', "Use email instead")
+
+            # Sayfanın yüklenmesini bekle
+            time.sleep(random.uniform(2.0, 4.0))
+
+            # Name input'una "hasan" yaz
+            print("Name alanına yazılıyor...")
+            self.human_like_form_interaction('input[name="name"]', "hasan", "text")
+
+            # Email input'una email yaz
+            time.sleep(random.uniform(2.0, 4.0))
+            print("Email alanına yazılıyor...")
+            self.human_like_form_interaction('input[name="email"]', email_address, "email")
+
+            # Ay seçimi - June seç
+            time.sleep(random.uniform(2.0, 4.0))
+            print("Ay seçimi yapılıyor...")
+            self.human_like_dropdown_interaction('select[id="SELECTOR_1"]', "June", "Ay")
+
+            # Gün seçimi - 27 seç
+            time.sleep(random.uniform(1.5, 3.0))
+            print("Gün seçimi yapılıyor...")
+            self.human_like_dropdown_interaction('select[id="SELECTOR_2"]', "27", "Gün")
+
+            # Yıl seçimi - 1984 seç
+            time.sleep(random.uniform(1.5, 3.0))
+            print("Yıl seçimi yapılıyor...")
+            self.human_like_dropdown_interaction('select[id="SELECTOR_3"]', "1984", "Yıl")
+
             # Next butonuna tıkla
-            time.sleep(random.uniform(3.0, 5.0))
-            self.human_like_button_interaction('span:contains("Next")', "Doğrulama Next")
-            
-            # Hesap oluşturma tamamlanmasını bekle
-            time.sleep(random.uniform(5.0, 8.0))
-            print("Hesap oluşturma işlemi tamamlandı!")
-            
-        else:
-            print("Doğrulama kodu alınamadı!")
+            time.sleep(random.uniform(3.0, 6.0))
+            print("Next butonuna tıklanıyor...")
+            self.human_like_button_interaction('button:contains("Next")', "Next")
 
-        # Enter'a basılmasını bekle
-        input("Çıkmak için Enter'a basın...")
+            # E-posta doğrulama sayfasını bekle
+            time.sleep(random.uniform(3.0, 5.0))
+            print("Doğrulama kodu gönderildi!")
+            
+            # Doğrulama kodunu al
+            time.sleep(random.uniform(2.0, 4.0))
+            print("E-posta doğrulama kodu bekleniyor...")
+            verification_code = get_verification_code(email_address, password)
+            
+            if verification_code:
+                print(f"Doğrulama kodu alındı: {verification_code}")
+                
+                # Doğrulama kodunu input'a yaz
+                time.sleep(random.uniform(3.0, 5.0))
+                self.human_like_form_interaction('input[name="verfication_code"]', verification_code, "verification")
+                
+                # Next butonuna tıkla
+                time.sleep(random.uniform(3.0, 5.0))
+                self.human_like_button_interaction('span:contains("Next")', "Doğrulama Next")
+                
+                # Hesap oluşturma tamamlanmasını bekle
+                time.sleep(random.uniform(5.0, 8.0))
+                print("Hesap oluşturma işlemi tamamlandı!")
+                
+            else:
+                print("Doğrulama kodu alınamadı!")
+
+            # Enter'a basılmasını bekle
+            input("Çıkmak için Enter'a basın...")
+            
+        except Exception as e:
+            print(f"Hata oluştu: {e}")
+            print(f"Hata türü: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            
+            # Hata durumunda da tarayıcıyı açık tut
+            print("Hata nedeniyle tarayıcı açık tutuluyor...")
+            input("Hata analizi için Enter'a basın...")
 
 if __name__ == "__main__":
     # Minimal ayarlarla çalıştır
