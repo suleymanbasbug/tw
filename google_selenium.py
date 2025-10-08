@@ -17,21 +17,45 @@ class TwitterSignup(BaseCase):
         return random.choice(USER_AGENTS)
     
     def cdp_human_type(self, selector, text, speed="normal"):
-        """CDP Mode ile insan benzeri yazma - press_keys kullanarak"""
-        # CDP Mode'da press_keys daha insan benzeri yazma sağlar
+        """CDP Mode ile insan benzeri yazma + form validasyonu"""
+        # Input'a odaklan
+        self.cdp.click(selector)
+        time.sleep(random.uniform(0.5, 1.0))
+        
+        # Yazma işlemi
         if speed == "slow":
             # Yavaş yazma için karakter karakter
-            self.cdp.click(selector)
-            time.sleep(random.uniform(0.5, 1.0))
-            
             for char in text:
                 self.cdp.type(selector, char)
                 time.sleep(random.uniform(0.2, 0.4))
         else:
             # Normal ve hızlı yazma için press_keys kullan
-            self.cdp.click(selector)
-            time.sleep(random.uniform(0.3, 0.7))
             self.cdp.press_keys(selector, text)
+        
+        # Form validasyonunu tetikle - Focus/blur cycle + event dispatch
+        self.cdp.evaluate(f"""
+            (function() {{
+                const inputElement = document.querySelector('{selector}');
+                if (inputElement) {{
+                    // Focus/blur cycle ile validasyonu tetikle
+                    inputElement.focus();
+                    inputElement.blur();
+                    
+                    // JavaScript eventleri tetikle
+                    inputElement.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    inputElement.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    inputElement.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+                    
+                    // Form validasyonunu zorla tetikle
+                    if (inputElement.form) {{
+                        inputElement.form.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }}
+            }})();
+        """)
+        
+        # Validasyon işleminin tamamlanmasını bekle
+        time.sleep(random.uniform(0.5, 1.0))
         
         return True
     
@@ -652,6 +676,18 @@ class TwitterSignup(BaseCase):
             print("Ay seçimi CDP Mode ile yapılıyor...")
             month_select = 'select[id="SELECTOR_1"]'
             self.cdp.select_option_by_text(month_select, "June")
+            
+            # Ay seçimi validasyonu tetikle
+            self.cdp.evaluate(f"""
+                const monthElement = document.querySelector('{month_select}');
+                if (monthElement) {{
+                    monthElement.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    monthElement.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    if (monthElement.form) {{
+                        monthElement.form.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }}
+            """)
             time.sleep(random.uniform(0.5, 1.0))
             print("Ay seçimi CDP Mode ile tamamlandı!")
 
@@ -660,6 +696,18 @@ class TwitterSignup(BaseCase):
             print("Gün seçimi CDP Mode ile yapılıyor...")
             day_select = 'select[id="SELECTOR_2"]'
             self.cdp.select_option_by_text(day_select, "27")
+            
+            # Gün seçimi validasyonu tetikle
+            self.cdp.evaluate(f"""
+                const dayElement = document.querySelector('{day_select}');
+                if (dayElement) {{
+                    dayElement.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    dayElement.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    if (dayElement.form) {{
+                        dayElement.form.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }}
+            """)
             time.sleep(random.uniform(0.5, 1.0))
             print("Gün seçimi CDP Mode ile tamamlandı!")
 
@@ -668,14 +716,133 @@ class TwitterSignup(BaseCase):
             print("Yıl seçimi CDP Mode ile yapılıyor...")
             year_select = 'select[id="SELECTOR_3"]'
             self.cdp.select_option_by_text(year_select, "1984")
+            
+            # Yıl seçimi validasyonu tetikle
+            self.cdp.evaluate(f"""
+                const yearElement = document.querySelector('{year_select}');
+                if (yearElement) {{
+                    yearElement.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    yearElement.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    if (yearElement.form) {{
+                        yearElement.form.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }}
+            """)
             time.sleep(random.uniform(0.5, 1.0))
             print("Yıl seçimi CDP Mode ile tamamlandı!")
 
-            # Next butonuna tıkla (CDP Mode ile)
-            time.sleep(random.uniform(3.0, 6.0))
-            print("Next butonuna CDP Mode ile tıklanıyor...")
-            self.cdp.click('button:contains("Next")')
-            print("Next butonu CDP Mode ile tıklandı!")
+            # Next butonuna tıklamadan önce form validasyonunu kontrol et
+            time.sleep(random.uniform(2.0, 4.0))
+            print("Form validasyonu kontrol ediliyor...")
+            
+            # Tüm form alanlarını tekrar tetikle
+            self.cdp.evaluate("""
+                // Tüm input ve select alanlarını bul ve eventleri tetikle
+                const inputs = document.querySelectorAll('input, select');
+                inputs.forEach(input => {
+                    // Focus/blur cycle
+                    input.focus();
+                    input.blur();
+                    
+                    // Eventleri tetikle
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                });
+                
+                // Form validasyonunu zorla tetikle
+                const forms = document.querySelectorAll('form');
+                forms.forEach(form => {
+                    form.dispatchEvent(new Event('input', { bubbles: true }));
+                    form.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            """)
+            
+            # Validasyon işleminin tamamlanmasını bekle
+            time.sleep(random.uniform(1.0, 2.0))
+            
+            # Next butonunun durumunu kontrol et
+            next_button_status = self.cdp.evaluate("""
+                (function() {
+                    const buttons = document.querySelectorAll('button');
+                    let nextButton = null;
+                    
+                    for (let button of buttons) {
+                        if (button.textContent.includes('Next')) {
+                            nextButton = button;
+                            break;
+                        }
+                    }
+                    
+                    if (nextButton) {
+                        return {
+                            exists: true,
+                            disabled: nextButton.disabled,
+                            text: nextButton.textContent.trim(),
+                            classes: nextButton.className
+                        };
+                    }
+                    return { exists: false };
+                })();
+            """)
+            
+            print(f"Next buton durumu: {next_button_status}")
+            
+            if next_button_status.get('exists') and not next_button_status.get('disabled'):
+                print("Next butonu aktif! Tıklanıyor...")
+                self.cdp.click('button:contains("Next")')
+                print("Next butonu CDP Mode ile tıklandı!")
+            else:
+                print("Next butonu hala disabled! Manuel müdahale gerekebilir.")
+                print("Form alanlarını kontrol edin:")
+                
+                # Form alanlarının durumunu kontrol et
+                form_debug = self.cdp.evaluate("""
+                    (function() {
+                        const debug = {};
+                        
+                        // Name kontrolü
+                        const nameInput = document.querySelector('input[name="name"]');
+                        debug.name = {
+                            value: nameInput ? nameInput.value : 'not found',
+                            valid: nameInput ? nameInput.validity.valid : false,
+                            required: nameInput ? nameInput.required : false
+                        };
+                        
+                        // Email kontrolü
+                        const emailInput = document.querySelector('input[name="email"]');
+                        debug.email = {
+                            value: emailInput ? emailInput.value : 'not found',
+                            valid: emailInput ? emailInput.validity.valid : false,
+                            required: emailInput ? emailInput.required : false
+                        };
+                        
+                        // Select kontrolleri
+                        const monthSelect = document.querySelector('select[id="SELECTOR_1"]');
+                        const daySelect = document.querySelector('select[id="SELECTOR_2"]');
+                        const yearSelect = document.querySelector('select[id="SELECTOR_3"]');
+                        
+                        debug.month = {
+                            value: monthSelect ? monthSelect.value : 'not found',
+                            valid: monthSelect ? monthSelect.validity.valid : false
+                        };
+                        debug.day = {
+                            value: daySelect ? daySelect.value : 'not found',
+                            valid: daySelect ? daySelect.validity.valid : false
+                        };
+                        debug.year = {
+                            value: yearSelect ? yearSelect.value : 'not found',
+                            valid: yearSelect ? yearSelect.validity.valid : false
+                        };
+                        
+                        return debug;
+                    })();
+                """)
+                
+                print(f"Form debug bilgisi: {form_debug}")
+                
+                # Manuel müdahale için bekle
+                input("Next butonu aktif olmadı. Manuel kontrol için Enter'a basın...")
 
             # Captcha kontrolü yap
             time.sleep(random.uniform(2.0, 4.0))
