@@ -1,0 +1,7 @@
+# YesCaptcha API Anahtarı
+# Buraya YesCaptcha'dan aldığınız API anahtarını yazın
+YESCAPTCHA_API_KEY=3850773cda8581361a553b1f3712102c1dd44de179197
+
+# Diğer ayarlar
+CAPTCHA_TIMEOUT=60
+CAPTCHA_MAX_ATTEMPTS=3
