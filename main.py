@@ -5,7 +5,6 @@ from utils.mail_password import get_verification_code
 from utils.user_agents import USER_AGENTS
 from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
-from utils.captcha_detector import CaptchaDetector
 
 class TwitterSignup(BaseCase):
     
@@ -36,10 +35,6 @@ class TwitterSignup(BaseCase):
             stealth = StealthHelper(self.cdp)
             stealth.setup_all_stealth()
             
-            # Captcha detector'ı başlat
-            print("Captcha detector başlatılıyor...")
-            captcha_detector = CaptchaDetector(self.cdp)
-            captcha_detector.setup_network_listener()
             
             # Sayfa yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -92,36 +87,6 @@ class TwitterSignup(BaseCase):
                 except EOFError:
                     print("Test ortamında manuel müdahale atlandı...")
 
-            # Captcha kontrolü yap
-            print("Captcha kontrolü yapılıyor...")
-            self.sleep(random.uniform(2.0, 4.0))
-            
-            # Captcha yüklenme durumunu kontrol et
-            if captcha_detector.check_if_captcha_loaded():
-                print("🚨 Captcha tespit edildi!")
-                
-                # Kullanıcıdan çözüm yöntemi seçimi
-                print("\n" + "="*50)
-                print("📋 CAPTCHA ÇÖZÜM YÖNTEMİ SEÇİN:")
-                print("1. Otomatik çözüm (CaptchaSolver ile)")
-                print("2. Manuel çözüm (Kullanıcı tarafından)")
-                print("="*50)
-                
-                try:
-                    choice = input("Seçiminizi yapın (1/2) [varsayılan: 1]: ").strip()
-                    if choice == "2":
-                        print("🔄 Manuel çözüme geçiliyor...")
-                        captcha_detector.wait_for_manual_solve()
-                    else:
-                        print("🤖 Otomatik çözüme geçiliyor...")
-                        captcha_detector.solve_captcha_automatically()
-                        
-                except EOFError:
-                    print("⚠️ Test ortamında otomatik çözüm seçiliyor...")
-                    captcha_detector.solve_captcha_automatically()
-                
-            else:
-                print("✅ Captcha tespit edilmedi, normal akış devam ediyor...")
 
             # E-posta doğrulama sayfasını bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -150,8 +115,6 @@ class TwitterSignup(BaseCase):
             else:
                 print("Doğrulama kodu alınamadı!")
 
-            # Captcha detector'ı temizle
-            captcha_detector.cleanup()
             
             # Enter'a basılmasını bekle
             try:
