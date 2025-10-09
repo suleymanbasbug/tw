@@ -5,6 +5,7 @@ from utils.mail_password import get_verification_code
 from utils.user_agents import USER_AGENTS
 from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
+from utils.captcha_detector import CaptchaDetector
 
 class TwitterSignup(BaseCase):
     
@@ -34,6 +35,11 @@ class TwitterSignup(BaseCase):
             print("Stealth ayarları kuruluyor...")
             stealth = StealthHelper(self.cdp)
             stealth.setup_all_stealth()
+            
+            # Captcha detector'ı başlat
+            print("Captcha detector başlatılıyor...")
+            captcha_detector = CaptchaDetector(self.cdp)
+            captcha_detector.setup_network_listener()
             
             # Sayfa yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -86,9 +92,22 @@ class TwitterSignup(BaseCase):
                 except EOFError:
                     print("Test ortamında manuel müdahale atlandı...")
 
-            # Captcha kontrolü kaldırıldı - normal akış devam ediyor
+            # Captcha kontrolü yap
+            print("Captcha kontrolü yapılıyor...")
             self.sleep(random.uniform(2.0, 4.0))
-            print("Captcha kontrolü kaldırıldı, normal akış devam ediyor...")
+            
+            # Captcha yüklenme durumunu kontrol et
+            if captcha_detector.check_if_captcha_loaded():
+                print("🚨 Captcha tespit edildi! Manuel çözüm bekleniyor...")
+                captcha_detector.wait_for_manual_solve()
+                
+                # Gelecekte captcha solver entegrasyonu için placeholder
+                # TODO: Otomatik captcha çözüm servisi entegrasyonu
+                # captcha_solver = CaptchaSolver()
+                # solution = captcha_solver.solve_captcha()
+                
+            else:
+                print("✅ Captcha tespit edilmedi, normal akış devam ediyor...")
 
             # E-posta doğrulama sayfasını bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -117,6 +136,9 @@ class TwitterSignup(BaseCase):
             else:
                 print("Doğrulama kodu alınamadı!")
 
+            # Captcha detector'ı temizle
+            captcha_detector.cleanup()
+            
             # Enter'a basılmasını bekle
             try:
                 input("Çıkmak için Enter'a basın...")
