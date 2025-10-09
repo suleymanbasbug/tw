@@ -98,13 +98,27 @@ class TwitterSignup(BaseCase):
             
             # Captcha yüklenme durumunu kontrol et
             if captcha_detector.check_if_captcha_loaded():
-                print("🚨 Captcha tespit edildi! Manuel çözüm bekleniyor...")
-                captcha_detector.wait_for_manual_solve()
+                print("🚨 Captcha tespit edildi!")
                 
-                # Gelecekte captcha solver entegrasyonu için placeholder
-                # TODO: Otomatik captcha çözüm servisi entegrasyonu
-                # captcha_solver = CaptchaSolver()
-                # solution = captcha_solver.solve_captcha()
+                # Kullanıcıdan çözüm yöntemi seçimi
+                print("\n" + "="*50)
+                print("📋 CAPTCHA ÇÖZÜM YÖNTEMİ SEÇİN:")
+                print("1. Otomatik çözüm (CaptchaSolver ile)")
+                print("2. Manuel çözüm (Kullanıcı tarafından)")
+                print("="*50)
+                
+                try:
+                    choice = input("Seçiminizi yapın (1/2) [varsayılan: 1]: ").strip()
+                    if choice == "2":
+                        print("🔄 Manuel çözüme geçiliyor...")
+                        captcha_detector.wait_for_manual_solve()
+                    else:
+                        print("🤖 Otomatik çözüme geçiliyor...")
+                        captcha_detector.solve_captcha_automatically()
+                        
+                except EOFError:
+                    print("⚠️ Test ortamında otomatik çözüm seçiliyor...")
+                    captcha_detector.solve_captcha_automatically()
                 
             else:
                 print("✅ Captcha tespit edilmedi, normal akış devam ediyor...")

@@ -214,6 +214,36 @@ class CaptchaDetector:
             print("⚠️ Test ortamında manuel captcha çözümü atlandı...")
             return True
     
+    def solve_captcha_automatically(self):
+        """Otomatik captcha çözümü için CaptchaSolver kullan"""
+        try:
+            from utils.captcha_solver import CaptchaSolver
+            
+            print("\n" + "="*60)
+            print("🤖 OTOMATİK CAPTCHA ÇÖZÜMÜ BAŞLATILIYOR")
+            print("="*60)
+            
+            # CaptchaSolver'ı başlat
+            solver = CaptchaSolver(self.cdp)
+            
+            # Captcha'yı çöz
+            success = solver.solve_captcha()
+            
+            if success:
+                print("✅ Otomatik captcha çözümü başarılı!")
+                solver.cleanup()
+                return True
+            else:
+                print("❌ Otomatik captcha çözümü başarısız!")
+                print("🔄 Manuel çözüme geçiliyor...")
+                solver.cleanup()
+                return self.wait_for_manual_solve()
+                
+        except Exception as e:
+            print(f"❌ Otomatik captcha çözümü sırasında hata: {e}")
+            print("🔄 Manuel çözüme geçiliyor...")
+            return self.wait_for_manual_solve()
+    
     def get_captcha_status(self):
         """Captcha durumu hakkında detaylı bilgi al"""
         try:
