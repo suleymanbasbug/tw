@@ -90,6 +90,19 @@ class TwitterSignup(BaseCase):
                 
                 if captcha_detected:
                     print("✅ Captcha başarıyla tespit edildi!")
+                    
+                    # FunCaptcha Authenticate butonuna tıkla
+                    print("\n🎯 FunCaptcha Authenticate butonu tıklanıyor...")
+                    authenticate_success = captcha_detector.click_captcha_authenticate_button()
+                    
+                    if authenticate_success:
+                        print("🎉 FunCaptcha Authenticate işlemi başarılı!")
+                        # Captcha çözümü sonrası devam edebilirsiniz
+                        self.sleep(3)  # Captcha'nın işlenmesi için bekle
+                    else:
+                        print("❌ FunCaptcha Authenticate işlemi başarısız!")
+                        print("🔄 Manuel müdahale gerekebilir...")
+                        
                 else:
                     print("❌ Captcha tespit edilemedi!")
                 

@@ -198,3 +198,59 @@ class CaptchaDetector:
         else:
             print("❌ Captcha tespit edilemedi (30 saniye timeout)")
             return False
+    
+    def click_captcha_authenticate_button(self):
+        """FunCaptcha iframe içindeki Authenticate butonuna tıklama"""
+        print("\n🎯 FunCaptcha Authenticate butonu tıklanıyor...")
+        
+        try:
+            # 1. RECONNECT çağır (iframe geçişinden ÖNCE!)
+            print("🔄 CDP Mode'dan standart Selenium'a geçiş yapılıyor...")
+            self.selenium.reconnect()
+            print("✅ Reconnect başarılı! Standart Selenium metodları aktif.")
+            
+            # 2. Ana captcha iframe'ine geçiş yap (#arkoseFrame)
+            print("📱 Ana captcha iframe'ine (#arkoseFrame) geçiş yapılıyor...")
+            self.selenium.wait_for_element("#arkoseFrame", timeout=10)
+            self.selenium.switch_to_frame("#arkoseFrame")
+            print("✅ #arkoseFrame'e geçiş başarılı!")
+            
+            # 3. İç iframe'e geçiş yap (Verification challenge iframe)
+            print("📱 İç iframe'e (Verification challenge) geçiş yapılıyor...")
+            self.selenium.wait_for_element('iframe[title="Verification challenge"]', timeout=10)
+            self.selenium.switch_to_frame('iframe[title="Verification challenge"]')
+            print("✅ Verification challenge iframe'e geçiş başarılı!")
+            
+            # 4. Authenticate butonunun yüklenmesini bekle
+            print("⏳ Authenticate butonu bekleniyor...")
+            self.selenium.wait_for_element('button[data-theme="home.verifyButton"]', timeout=10)
+            print("✅ Authenticate butonu bulundu!")
+            
+            # 5. Butona tıkla
+            print("🖱️ Authenticate butonuna tıklanıyor...")
+            self.selenium.click('button[data-theme="home.verifyButton"]')
+            print("✅ Authenticate butonu başarıyla tıklandı!")
+            
+            # 6. Ana frame'e geri dön
+            print("🏠 Ana frame'e geri dönülüyor...")
+            self.selenium.switch_to_default_content()
+            print("✅ Ana frame'e geri dönüş başarılı!")
+            
+            # 7. Kısa bekleme (captcha'nın yanıt vermesi için)
+            self.selenium.sleep(2)
+            print("🎉 FunCaptcha Authenticate işlemi tamamlandı!")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ FunCaptcha Authenticate butonu tıklama hatası: {e}")
+            print(f"🔍 Hata türü: {type(e).__name__}")
+            
+            # Hata durumunda ana frame'e geri dönmeye çalış
+            try:
+                self.selenium.switch_to_default_content()
+                print("✅ Hata durumunda ana frame'e geri dönüldü")
+            except:
+                print("⚠️ Ana frame'e geri dönüş başarısız")
+            
+            return False
