@@ -5,6 +5,7 @@ from utils.mail_password import get_verification_code
 from utils.user_agents import USER_AGENTS
 from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
+from utils.captcha_detector import CaptchaDetector
 
 class TwitterSignup(BaseCase):
     
@@ -26,6 +27,11 @@ class TwitterSignup(BaseCase):
             print("CDP Mode ile Twitter signup sayfası açılıyor...")
             self.activate_cdp_mode("https://x.com/i/flow/signup")
             print("CDP Mode aktif edildi!")
+            
+            # Captcha tespit sistemini erken başlat (CDP aktif olduktan hemen sonra)
+            print("\n🎯 Captcha tespit sistemi erken başlatılıyor...")
+            captcha_detector = CaptchaDetector(self)
+            captcha_detector.setup_network_monitoring()
             
             # Sayfa yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -77,6 +83,16 @@ class TwitterSignup(BaseCase):
                 print("Next butonu aktif! Tıklanıyor...")
                 form.click_next_button()
                 print("Next butonu CDP Mode ile tıklandı!")
+                
+                # Captcha'nın yüklenmesini bekle (zaten başlatılmış)
+                print("\n🎯 Captcha yüklenmesi bekleniyor...")
+                captcha_detected = captcha_detector.wait_for_captcha()
+                
+                if captcha_detected:
+                    print("✅ Captcha başarıyla tespit edildi!")
+                else:
+                    print("❌ Captcha tespit edilemedi!")
+                
             else:
                 print("Next butonu hala disabled! Manuel müdahale gerekebilir.")
                 form.get_form_debug_info()
