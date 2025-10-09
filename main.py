@@ -3,7 +3,6 @@ import time
 from seleniumbase import BaseCase
 from utils.mail_password import get_verification_code
 from utils.user_agents import USER_AGENTS
-from utils.monitoring import NetworkMonitor
 from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
 
@@ -35,12 +34,6 @@ class TwitterSignup(BaseCase):
             print("Stealth ayarları kuruluyor...")
             stealth = StealthHelper(self.cdp)
             stealth.setup_all_stealth()
-            
-            # Network izleme sistemini başlat
-            print("Network izleme sistemi başlatılıyor...")
-            monitor = NetworkMonitor(self)
-            monitor.setup_network_monitoring()
-            monitor.monitor_console_logs()
             
             # Sayfa yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
