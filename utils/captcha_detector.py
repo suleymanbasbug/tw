@@ -1,5 +1,6 @@
 import time
 import random
+import re
 from seleniumbase import BaseCase
 
 class CaptchaDetector:
@@ -231,15 +232,39 @@ class CaptchaDetector:
             print("⏳ Authenticate butonu bekleniyor...")
             self.selenium.wait_for_element('button[data-theme="home.verifyButton"]', timeout=10)
             print("✅ Authenticate butonu bulundu!")
+            self.selenium.sleep(2)
             
             # 6. Butona tıkla
             print("🖱️ Authenticate butonuna tıklanıyor...")
             self.selenium.click('button[data-theme="home.verifyButton"]')
             print("✅ Authenticate butonu başarıyla tıklandı!")
+            self.selenium.sleep(2)
             
-            # 7. Ana frame'e geri dön
+            # 7. Challenge text'ini al ve temizle
+            print("📝 Challenge text'i alınıyor...")
+            try:
+                # Challenge text elementini bekle ve al
+                self.selenium.wait_for_element('span[role="text"]', timeout=10)
+                challenge_text = self.selenium.get_text('span[role="text"]')
+                print(f"📄 Ham challenge text: {challenge_text}")
+                
+                # HTML tag'lerini kaldır
+                clean_text = re.sub(r'<[^>]+>', '', challenge_text)
+                
+                # Sondaki parantez içindeki sayıları kaldır (örn: (1 of 1), (2 of 3))
+                clean_text = re.sub(r'\s*\(\d+\s+of\s+\d+\)\s*$', '', clean_text)
+                
+                # Gereksiz boşlukları temizle
+                clean_text = clean_text.strip()
+                
+                print(f"✨ Temizlenmiş challenge text: {clean_text}")
+                
+            except Exception as text_error:
+                print(f"⚠️ Challenge text alınamadı: {text_error}")
             
-            # 8. Kısa bekleme (captcha'nın yanıt vermesi için)
+            # 8. Ana frame'e geri dön
+            
+            # 9. Kısa bekleme (captcha'nın yanıt vermesi için)
             self.selenium.sleep(2)
             print("🎉 FunCaptcha Authenticate işlemi tamamlandı!")
             
