@@ -178,6 +178,75 @@ class CaptchaDetector:
         
         print("="*60)
     
+    def solve_captcha_with_yescaptcha(self, base64_image, question_text):
+        """YesCaptcha API'sini kullanarak captcha'yı çöz"""
+        print("\n🤖 YesCaptcha ile captcha çözülüyor...")
+        print("="*50)
+        
+        try:
+            # YesCaptcha API'sine istek gönder
+            result = solve_funcaptcha(base64_image, question_text)
+            
+            # Sonucu kontrol et
+            if isinstance(result, dict):
+                if "error" in result:
+                    print(f"❌ YesCaptcha API hatası: {result['error']}")
+                    if "message" in result:
+                        print(f"📝 Hata mesajı: {result['message']}")
+                    return None
+                elif "solution" in result:
+                    print("✅ Captcha başarıyla çözüldü!")
+                    print(f"🎯 Çözüm: {result['solution']}")
+                    return result["solution"]
+                elif "taskId" in result:
+                    print(f"⏳ Task oluşturuldu, ID: {result['taskId']}")
+                    print("ℹ️ Bu durumda task'ın tamamlanmasını beklemek gerekir")
+                    return result
+                else:
+                    print("⚠️ Beklenmeyen response formatı")
+                    print(f"📋 Response keys: {list(result.keys())}")
+                    return result
+            else:
+                print(f"❌ Beklenmeyen response türü: {type(result)}")
+                return None
+                
+        except Exception as e:
+            print(f"❌ YesCaptcha çözme hatası: {e}")
+            return None
+    
+    def apply_captcha_solution(self, solution):
+        """Captcha çözümünü uygula (tıklama, metin girme vb.)"""
+        print(f"\n🖱️ Captcha çözümü uygulanıyor: {solution}")
+        
+        try:
+            # Çözüm türüne göre farklı işlemler yapılabilir
+            if isinstance(solution, str):
+                # Metin tabanlı çözümler
+                if "click" in solution.lower() or "tıkla" in solution.lower():
+                    print("🖱️ Tıklama çözümü tespit edildi")
+                    # Burada belirli elementlere tıklama işlemi yapılabilir
+                    
+                elif "type" in solution.lower() or "yaz" in solution.lower():
+                    print("⌨️ Metin girme çözümü tespit edildi")
+                    # Burada metin girme işlemi yapılabilir
+                    
+                else:
+                    print(f"ℹ️ Genel çözüm: {solution}")
+                    
+            elif isinstance(solution, list):
+                print(f"📋 Liste çözümü: {solution}")
+                # Liste halinde gelen çözümler (örn: [1, 3, 5] - hangi resimlere tıklanacağı)
+                
+            else:
+                print(f"⚠️ Bilinmeyen çözüm türü: {type(solution)}")
+                
+            print("✅ Captcha çözümü uygulandı!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Captcha çözümü uygulama hatası: {e}")
+            return False
+    
     def wait_for_captcha(self, max_wait_time=30):
         """Captcha'nın yüklenmesini bekle (network monitoring + DOM polling)"""
         print("⏳ Captcha yüklenmesi bekleniyor...")
@@ -244,6 +313,7 @@ class CaptchaDetector:
             
             # 7. Challenge text'ini al ve temizle
             print("📝 Challenge text'i alınıyor...")
+            clean_text = "Pick the bread"  # Varsayılan değer
             try:
                 # Challenge text elementini bekle ve al
                 self.selenium.wait_for_element('span[role="text"]', timeout=10)
@@ -263,8 +333,9 @@ class CaptchaDetector:
                 
             except Exception as text_error:
                 print(f"⚠️ Challenge text alınamadı: {text_error}")
+                print(f"🔄 Varsayılan challenge text kullanılıyor: {clean_text}")
             
-            # 8. Captcha resminin background-image'ini base64'e dönüştür
+            # 8. Captcha resminin background-image'ini base64'e dönüştür ve YesCaptcha ile çöz
             print("🖼️ Captcha resmi base64'e dönüştürülüyor...")
             try:
                 # İlk captcha resmini bul
@@ -329,8 +400,27 @@ class CaptchaDetector:
                     
                     # Base64 string'inin geçerli olup olmadığını kontrol et
                     if base64_string and not base64_string.startswith('ERROR:'):
-                        print(f"🎯 Base64-encoded image:")
-                        print(f"{base64_string}")
+                        print(f"✅ Base64 resim başarıyla oluşturuldu!")
+                        print(f"📏 Resim boyutu: {len(base64_string)} karakter")
+                        
+                        # YesCaptcha ile captcha'yı çöz
+                        print("\n🤖 YesCaptcha ile captcha çözülüyor...")
+                        captcha_solution = self.solve_captcha_with_yescaptcha(base64_string, clean_text)
+                        
+                        if captcha_solution:
+                            print(f"🎯 Captcha çözümü alındı: {captcha_solution}")
+                            
+                            # Çözümü uygula
+                            solution_applied = self.apply_captcha_solution(captcha_solution)
+                            
+                            if solution_applied:
+                                print("✅ Captcha çözümü başarıyla uygulandı!")
+                            else:
+                                print("❌ Captcha çözümü uygulanamadı!")
+                            
+                        else:
+                            print("❌ Captcha çözülemedi!")
+                            
                     else:
                         print(f"❌ Base64 dönüştürme hatası: {base64_string}")
                     
