@@ -215,28 +215,31 @@ class CaptchaDetector:
             self.selenium.switch_to_frame("#arkoseFrame")
             print("✅ #arkoseFrame'e geçiş başarılı!")
             
-            # 3. İç iframe'e geçiş yap (Verification challenge iframe)
-            print("📱 İç iframe'e (Verification challenge) geçiş yapılıyor...")
+            # 3. Orta iframe'e geçiş yap (Verification challenge iframe)
+            print("📱 Orta iframe'e (Verification challenge) geçiş yapılıyor...")
             self.selenium.wait_for_element('iframe[title="Verification challenge"]', timeout=10)
             self.selenium.switch_to_frame('iframe[title="Verification challenge"]')
             print("✅ Verification challenge iframe'e geçiş başarılı!")
             
-            # 4. Authenticate butonunun yüklenmesini bekle
+            # 4. En iç iframe'e geçiş yap (game-core-frame)
+            print("📱 En iç iframe'e (#game-core-frame) geçiş yapılıyor...")
+            self.selenium.wait_for_element('#game-core-frame', timeout=10)
+            self.selenium.switch_to_frame('#game-core-frame')
+            print("✅ #game-core-frame'e geçiş başarılı!")
+            
+            # 5. Authenticate butonunun yüklenmesini bekle
             print("⏳ Authenticate butonu bekleniyor...")
             self.selenium.wait_for_element('button[data-theme="home.verifyButton"]', timeout=10)
             print("✅ Authenticate butonu bulundu!")
             
-            # 5. Butona tıkla
+            # 6. Butona tıkla
             print("🖱️ Authenticate butonuna tıklanıyor...")
             self.selenium.click('button[data-theme="home.verifyButton"]')
             print("✅ Authenticate butonu başarıyla tıklandı!")
             
-            # 6. Ana frame'e geri dön
-            print("🏠 Ana frame'e geri dönülüyor...")
-            self.selenium.switch_to_default_content()
-            print("✅ Ana frame'e geri dönüş başarılı!")
+            # 7. Ana frame'e geri dön
             
-            # 7. Kısa bekleme (captcha'nın yanıt vermesi için)
+            # 8. Kısa bekleme (captcha'nın yanıt vermesi için)
             self.selenium.sleep(2)
             print("🎉 FunCaptcha Authenticate işlemi tamamlandı!")
             
