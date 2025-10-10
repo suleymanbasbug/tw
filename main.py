@@ -7,6 +7,7 @@ from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
 from utils.captcha_detector import CaptchaDetector
 from utils.user_data_generator import get_random_user_info
+from utils.js_instrumentation_bypass import JSInstrumentationBypass
 
 class TwitterSignup(BaseCase):
     
@@ -28,6 +29,8 @@ class TwitterSignup(BaseCase):
             print("CDP Mode ile Twitter signup sayfası açılıyor...")
             self.activate_cdp_mode("https://x.com/i/flow/signup")
             print("CDP Mode aktif edildi!")
+            
+           
             
             # Captcha tespit sistemini erken başlat (CDP aktif olduktan hemen sonra)
             print("\n🎯 Captcha tespit sistemi erken başlatılıyor...")
@@ -135,6 +138,11 @@ class TwitterSignup(BaseCase):
             
             if verification_code:
                 print(f"Doğrulama kodu alındı: {verification_code}")
+
+                 # JS Instrumentation bypass'ı ERKEN inject et (stealth'den önce!)
+                print("\n🔒 JS Instrumentation bypass ERKEN inject ediliyor...")
+                js_bypass = JSInstrumentationBypass(self.cdp)
+                js_bypass.setup_complete_bypass()
                 
                 # Doğrulama kodunu gir
                 form.fill_verification_code(verification_code)
