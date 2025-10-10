@@ -262,9 +262,87 @@ class CaptchaDetector:
             except Exception as text_error:
                 print(f"⚠️ Challenge text alınamadı: {text_error}")
             
-            # 8. Ana frame'e geri dön
+            # 8. Captcha resminin background-image'ini base64'e dönüştür
+            print("🖼️ Captcha resmi base64'e dönüştürülüyor...")
+            try:
+                # İlk captcha resmini bul
+                img_element = self.selenium.find_element('img[aria-label*="Image 1"]')
+                print("✅ Captcha resmi bulundu!")
+                
+                # Style attribute'unu al
+                style_attr = img_element.get_attribute('style')
+                print(f"📄 Style attribute: {style_attr}")
+                
+                # Background-image URL'ini extract et
+                url_match = re.search(r'url\("([^"]+)"\)', style_attr)
+                if url_match:
+                    blob_url = url_match.group(1)
+                    print(f"🔗 Blob URL: {blob_url}")
+                    
+                    # Aşama 1: Resmi geçici img elementine yükle
+                    print("📥 Resim geçici elementine yükleniyor...")
+                    load_img_js = """
+                    var img = new Image();
+                    img.id = 'temp-captcha-img';
+                    img.crossOrigin = 'anonymous';
+                    img.src = arguments[0];
+                    document.body.appendChild(img);
+                    return 'IMG_LOADED';
+                    """
+                    
+                    self.selenium.execute_script(load_img_js, blob_url)
+                    print("✅ Resim DOM'a eklendi, yüklenmesi bekleniyor...")
+                    
+                    # Resmin yüklenmesi için kısa bekleme
+                    self.selenium.sleep(2)
+                    
+                    # Aşama 2: Canvas'a çiz ve base64'e dönüştür
+                    print("🎨 Canvas'a çiziliyor ve base64'e dönüştürülüyor...")
+                    canvas_js = """
+                    try {
+                        var img = document.getElementById('temp-captcha-img');
+                        if (!img || !img.complete) {
+                            return 'ERROR: Resim henüz yüklenmedi';
+                        }
+                        
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        var base64 = canvas.toDataURL('image/png');
+                        
+                        // Geçici img elementini temizle
+                        document.body.removeChild(img);
+                        
+                        return base64;
+                    } catch (error) {
+                        return 'ERROR: ' + error.message;
+                    }
+                    """
+                    
+                    # Base64 string'i al
+                    base64_string = self.selenium.execute_script(canvas_js)
+                    
+                    # Base64 string'inin geçerli olup olmadığını kontrol et
+                    if base64_string and not base64_string.startswith('ERROR:'):
+                        print(f"🎯 Base64-encoded image:")
+                        print(f"{base64_string}")
+                    else:
+                        print(f"❌ Base64 dönüştürme hatası: {base64_string}")
+                    
+                else:
+                    print("❌ Background-image URL'i bulunamadı!")
+                    
+            except Exception as img_error:
+                print(f"⚠️ Captcha resmi işlenirken hata: {img_error}")
             
-            # 9. Kısa bekleme (captcha'nın yanıt vermesi için)
+            # 9. Ana frame'e geri dön
+            self.selenium.switch_to_default_content()
+            print("✅ Ana frame'e geri dönüldü")
+            
+            # 10. Kısa bekleme (captcha'nın yanıt vermesi için)
             self.selenium.sleep(2)
             print("🎉 FunCaptcha Authenticate işlemi tamamlandı!")
             
