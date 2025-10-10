@@ -4,6 +4,7 @@ Twitter kayıt formu işlemlerini yöneten sınıf
 """
 
 import random
+import math
 
 class FormHandler:
     """Twitter kayıt formu işlemlerini yöneten sınıf"""
@@ -11,22 +12,50 @@ class FormHandler:
     def __init__(self, selenium_instance):
         """Selenium instance'ını al"""
         self.selenium = selenium_instance
+        # Human behavior modülünü import et
+        from utils.human_behavior import HumanBehavior
+        self.human = HumanBehavior(selenium_instance)
+    
+    def gaussian_random(self, mean, std_dev):
+        """Gauss dağılımından rastgele sayı üret"""
+        # Box-Muller transformasyonu
+        u1 = random.random()
+        u2 = random.random()
+        z0 = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+        return mean + z0 * std_dev
     
     def cdp_human_type(self, selector, text, speed="normal"):
         """CDP Mode ile insan benzeri yazma + form validasyonu"""
+        # Önce element'e hover yap
+        self.human.hover_element(selector)
+        
         # Input'a odaklan
         self.selenium.cdp.click(selector)
-        self.selenium.sleep(random.uniform(0.5, 1.0))
         
-        # Yazma işlemi
+        # Gauss dağılımı ile bekleme
+        focus_delay = self.gaussian_random(0.75, 0.25)
+        focus_delay = max(0.3, min(1.5, focus_delay))
+        self.selenium.sleep(focus_delay)
+        
+        # Yazma işlemi - human behavior ile
         if speed == "slow":
-            # Yavaş yazma için karakter karakter - press_keys ile
-            for char in text:
-                self.selenium.cdp.press_keys(selector, char)
-                self.selenium.sleep(random.uniform(0.2, 0.4))
+            # Yavaş yazma için karakter karakter - human typing rhythm kullan
+            for char, delay in self.human.typing_rhythm(text, "slow"):
+                if char is None:
+                    # Pause
+                    self.selenium.sleep(delay)
+                else:
+                    self.selenium.cdp.press_keys(selector, char)
+                    self.selenium.sleep(delay)
         else:
-            # Normal ve hızlı yazma için press_keys kullan
-            self.selenium.cdp.press_keys(selector, text)
+            # Normal ve hızlı yazma için human typing rhythm kullan
+            for char, delay in self.human.typing_rhythm(text, speed):
+                if char is None:
+                    # Pause
+                    self.selenium.sleep(delay)
+                else:
+                    self.selenium.cdp.press_keys(selector, char)
+                    self.selenium.sleep(delay)
         
         # Form validasyonunu tetikle - Focus/blur cycle + event dispatch
         self.selenium.cdp.evaluate(f"""
@@ -50,22 +79,26 @@ class FormHandler:
             }})();
         """)
         
-        # Validasyon işleminin tamamlanmasını bekle
-        self.selenium.sleep(random.uniform(0.5, 1.0))
+        # Validasyon işleminin tamamlanmasını bekle - Gauss dağılımı
+        validation_delay = self.gaussian_random(0.75, 0.25)
+        validation_delay = max(0.3, min(1.5, validation_delay))
+        self.selenium.sleep(validation_delay)
         
         return True
     
     def fill_name(self, name):
         """Name alanını doldur"""
         print(f"Name alanına CDP Mode ile '{name}' yazılıyor...")
-        self.selenium.sleep(random.uniform(1.0, 2.0))
+        # Düşünme süresi ekle
+        self.human.thinking_pause("form_fill")
         self.cdp_human_type('input[name="name"]', name, "normal")
         print("✅ Name alanı CDP Mode ile dolduruldu!")
     
     def fill_email(self, email):
         """Email alanını doldur"""
         print(f"Email alanına CDP Mode ile '{email}' yazılıyor...")
-        self.selenium.sleep(random.uniform(2.0, 4.0))
+        # Düşünme süresi ekle
+        self.human.thinking_pause("form_fill")
         self.cdp_human_type('input[name="email"]', email, "fast")
         print("✅ Email alanı CDP Mode ile dolduruldu!")
     
@@ -73,10 +106,14 @@ class FormHandler:
         """Doğum tarihi seç"""
         print(f"Doğum tarihi seçiliyor: {month}/{day}/{year}")
         
+        # Düşünme süresi ekle
+        self.human.thinking_pause("decision")
+        
         # Ay seçimi
-        self.selenium.sleep(random.uniform(2.0, 4.0))
         print("Ay seçimi CDP Mode ile yapılıyor...")
         month_select = 'select[id="SELECTOR_1"]'
+        # Önce hover yap
+        self.human.hover_element(month_select)
         self.selenium.cdp.select_option_by_text(month_select, month)
         
         # Ay seçimi validasyonu tetikle
@@ -90,13 +127,16 @@ class FormHandler:
                 }}
             }}
         """)
-        self.selenium.sleep(random.uniform(0.5, 1.0))
+        month_validation_delay = self.gaussian_random(0.75, 0.25)
+        month_validation_delay = max(0.3, min(1.5, month_validation_delay))
+        self.selenium.sleep(month_validation_delay)
         print("✅ Ay seçimi CDP Mode ile tamamlandı!")
 
         # Gün seçimi
-        self.selenium.sleep(random.uniform(1.5, 3.0))
         print("Gün seçimi CDP Mode ile yapılıyor...")
         day_select = 'select[id="SELECTOR_2"]'
+        # Önce hover yap
+        self.human.hover_element(day_select)
         self.selenium.cdp.select_option_by_text(day_select, day)
         
         # Gün seçimi validasyonu tetikle
@@ -110,13 +150,16 @@ class FormHandler:
                 }}
             }}
         """)
-        self.selenium.sleep(random.uniform(0.5, 1.0))
+        day_validation_delay = self.gaussian_random(0.75, 0.25)
+        day_validation_delay = max(0.3, min(1.5, day_validation_delay))
+        self.selenium.sleep(day_validation_delay)
         print("✅ Gün seçimi CDP Mode ile tamamlandı!")
 
         # Yıl seçimi
-        self.selenium.sleep(random.uniform(1.5, 3.0))
         print("Yıl seçimi CDP Mode ile yapılıyor...")
         year_select = 'select[id="SELECTOR_3"]'
+        # Önce hover yap
+        self.human.hover_element(year_select)
         self.selenium.cdp.select_option_by_text(year_select, year)
         
         # Yıl seçimi validasyonu tetikle
@@ -130,7 +173,9 @@ class FormHandler:
                 }}
             }}
         """)
-        self.selenium.sleep(random.uniform(0.5, 1.0))
+        year_validation_delay = self.gaussian_random(0.75, 0.25)
+        year_validation_delay = max(0.3, min(1.5, year_validation_delay))
+        self.selenium.sleep(year_validation_delay)
         print("✅ Yıl seçimi CDP Mode ile tamamlandı!")
     
     def validate_form(self):
@@ -160,8 +205,10 @@ class FormHandler:
             });
         """)
         
-        # Validasyon işleminin tamamlanmasını bekle
-        self.selenium.sleep(random.uniform(1.0, 2.0))
+        # Validasyon işleminin tamamlanmasını bekle - Gauss dağılımı
+        validation_delay = self.gaussian_random(1.5, 0.5)
+        validation_delay = max(0.5, min(3.0, validation_delay))
+        self.selenium.sleep(validation_delay)
         print("✅ Form validasyonu tetiklendi!")
     
     def check_next_button_status(self):
@@ -256,21 +303,16 @@ class FormHandler:
         print("CDP Mode ile Next butonuna tıklanıyor...")
         
         next_button = '//span[contains(text(), "Next")]'
-        # GUI click shadow DOM ve karmaşık elementler için daha güvenli
-        try:
-            self.selenium.cdp.gui_click_element(next_button)
-            print("✅ Next butonu GUI click ile tıklandı!")
-            return True
-        except:
-            # Fallback olarak normal click
-            self.selenium.cdp.click(next_button)
-            print("✅ Next butonu normal click ile tıklandı!")
-            return True
+        # İnsan benzeri tıklama kullan
+        self.human.human_click(next_button)
+        print("✅ Next butonu insan benzeri tıklama ile tıklandı!")
+        return True
     
     def fill_verification_code(self, verification_code):
         """Doğrulama kodunu gir"""
         print("CDP Mode ile doğrulama kodu giriliyor...")
-        self.selenium.sleep(random.uniform(2.0, 3.0))
+        # Düşünme süresi ekle - doğrulama kodu için daha uzun
+        self.human.thinking_pause("reading")
         
         # CDP Mode ile yavaşça ve dikkatli yaz (robot tespitini bypass et)
         self.cdp_human_type('input[name="verfication_code"]', verification_code, "slow")

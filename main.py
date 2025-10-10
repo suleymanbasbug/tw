@@ -1,5 +1,6 @@
 import random
 import time
+import math
 from seleniumbase import BaseCase
 from utils.mail_password import get_verification_code
 from utils.user_agents import USER_AGENTS
@@ -14,11 +15,19 @@ class TwitterSignup(BaseCase):
         """Random user agent seçimi"""
         return random.choice(USER_AGENTS)
     
+    def gaussian_random(self, mean, std_dev):
+        """Gauss dağılımından rastgele sayı üret"""
+        # Box-Muller transformasyonu
+        u1 = random.random()
+        u2 = random.random()
+        z0 = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+        return mean + z0 * std_dev
+    
     
     def test_signup(self):
         try:
-            email_address = "cdanmuyj@vargosmail.com"
-            password = "jqxliuuqA!7342"
+            email_address = "ekdkjkbq@fringmail.com"
+            password = "kgmafqhkA!9074"
             
             # Random user agent seçimi
             random_user_agent = self.get_random_user_agent()
@@ -34,39 +43,59 @@ class TwitterSignup(BaseCase):
             captcha_detector = CaptchaDetector(self)
             captcha_detector.setup_network_monitoring()
             
-            # Sayfa yüklenmesini bekle
-            self.sleep(random.uniform(3.0, 5.0))
+            # Sayfa yüklenmesini bekle - Gauss dağılımı
+            page_load_delay = self.gaussian_random(4.0, 1.0)
+            page_load_delay = max(2.0, min(7.0, page_load_delay))
+            self.sleep(page_load_delay)
             
             # Stealth ayarlarını kur
             print("Stealth ayarları kuruluyor...")
             stealth = StealthHelper(self.cdp)
             stealth.setup_consistent_fingerprints()  # Session tutarlı fingerprint'ler
+            stealth.block_webrtc_leak()  # YENİ
+            stealth.setup_timezone_locale()  # YENİ
+            stealth.setup_browser_properties()  # YENİ
+            stealth.setup_request_headers()  # YENİ
             
+            # Human behavior ekle
+            from utils.human_behavior import HumanBehavior
+            human = HumanBehavior(self)
+            human.random_mouse_movement()  # YENİ
             
-            # Sayfa yüklenmesini bekle
-            self.sleep(random.uniform(3.0, 5.0))
+            # Sayfa yüklenmesini bekle - Gauss dağılımı
+            post_stealth_delay = self.gaussian_random(4.0, 1.0)
+            post_stealth_delay = max(2.0, min(7.0, post_stealth_delay))
+            self.sleep(post_stealth_delay)
             
             # Create account butonunu bul ve CDP Mode ile tıkla
             print("Create account butonu aranıyor...")
             self.wait_for_element('//button[contains(text(), "Create account")]', timeout=20)
             
             # CDP Mode ile insan benzeri tıklama
-            self.sleep(random.uniform(1.5, 2.5))
+            pre_click_delay = self.gaussian_random(2.0, 0.5)
+            pre_click_delay = max(1.0, min(3.5, pre_click_delay))
+            self.sleep(pre_click_delay)
             self.cdp.click('//button[contains(text(), "Create account")]')
             print("Create account butonu CDP Mode ile tıklandı!")
 
-            # Sayfanın yüklenmesini bekle
-            self.sleep(random.uniform(3.0, 5.0))
+            # Sayfanın yüklenmesini bekle - Gauss dağılımı
+            page_load_delay = self.gaussian_random(4.0, 1.0)
+            page_load_delay = max(2.0, min(7.0, page_load_delay))
+            self.sleep(page_load_delay)
 
             # Use email instead butonunu bul ve CDP Mode ile tıkla
             print("Use email instead butonu aranıyor...")
             self.wait_for_element('//button[contains(text(), "Use email instead")]', timeout=20)
-            self.sleep(random.uniform(1.5, 2.5))
+            pre_click_delay = self.gaussian_random(2.0, 0.5)
+            pre_click_delay = max(1.0, min(3.5, pre_click_delay))
+            self.sleep(pre_click_delay)
             self.cdp.click('//button[contains(text(), "Use email instead")]')
             print("Use email instead butonu CDP Mode ile tıklandı!")
 
-            # Sayfanın yüklenmesini bekle
-            self.sleep(random.uniform(3.0, 5.0))
+            # Sayfanın yüklenmesini bekle - Gauss dağılımı
+            page_load_delay = self.gaussian_random(4.0, 1.0)
+            page_load_delay = max(2.0, min(7.0, page_load_delay))
+            self.sleep(page_load_delay)
 
             # Form handler'ı başlat
             form = FormHandler(self)
@@ -124,12 +153,16 @@ class TwitterSignup(BaseCase):
                     print("Test ortamında manuel müdahale atlandı...")
 
 
-            # E-posta doğrulama sayfasını bekle
-            self.sleep(random.uniform(3.0, 5.0))
+            # E-posta doğrulama sayfasını bekle - Gauss dağılımı
+            email_delay = self.gaussian_random(4.0, 1.0)
+            email_delay = max(2.0, min(7.0, email_delay))
+            self.sleep(email_delay)
             print("Doğrulama kodu gönderildi!")
             
-            # Doğrulama kodunu al
-            self.sleep(random.uniform(2.0, 4.0))
+            # Doğrulama kodunu al - Gauss dağılımı
+            code_delay = self.gaussian_random(3.0, 1.0)
+            code_delay = max(1.0, min(6.0, code_delay))
+            self.sleep(code_delay)
             print("E-posta doğrulama kodu bekleniyor...")
             verification_code = get_verification_code(email_address, password)
             
@@ -139,12 +172,16 @@ class TwitterSignup(BaseCase):
                 # Doğrulama kodunu gir
                 form.fill_verification_code(verification_code)
                 
-                # Next butonuna tıkla
-                self.sleep(random.uniform(2.0, 4.0))
+                # Next butonuna tıkla - Gauss dağılımı
+                next_delay = self.gaussian_random(3.0, 1.0)
+                next_delay = max(1.0, min(6.0, next_delay))
+                self.sleep(next_delay)
                 form.click_next_button()
                 
-                # Hesap oluşturma tamamlanmasını bekle
-                self.sleep(random.uniform(5.0, 8.0))
+                # Hesap oluşturma tamamlanmasını bekle - Gauss dağılımı
+                completion_delay = self.gaussian_random(6.5, 1.5)
+                completion_delay = max(3.0, min(12.0, completion_delay))
+                self.sleep(completion_delay)
                 print("Hesap oluşturma işlemi tamamlandı!")
                 print("CDP Mode sayesinde robot tespiti bypass edildi!")
                 
