@@ -215,36 +215,121 @@ class CaptchaDetector:
             return None
     
     def apply_captcha_solution(self, solution):
-        """Captcha çözümünü uygula (tıklama, metin girme vb.)"""
+        """Captcha çözümünü uygula (YesCaptcha API yanıtına göre)"""
         print(f"\n🖱️ Captcha çözümü uygulanıyor: {solution}")
         
         try:
-            # Çözüm türüne göre farklı işlemler yapılabilir
-            if isinstance(solution, str):
-                # Metin tabanlı çözümler
+            # YesCaptcha API yanıtını kontrol et - iki farklı format destekle
+            if isinstance(solution, dict):
+                # Format 1: {"solution": {"objects": [...]}} - tüm API yanıtı
+                # Format 2: {"objects": [...]} - sadece solution kısmı (mevcut)
+                
+                objects = None
+                if "solution" in solution and isinstance(solution["solution"], dict):
+                    # Format 1: Tüm API yanıtı
+                    print("✅ YesCaptcha API yanıtı tespit edildi (tüm yanıt formatı)")
+                    objects = solution["solution"].get("objects", [])
+                elif "objects" in solution:
+                    # Format 2: Sadece solution kısmı
+                    print("✅ YesCaptcha solution tespit edildi (solution formatı)")
+                    objects = solution.get("objects", [])
+                
+                if objects is None:
+                    print("❌ Objects dizisi bulunamadı!")
+                    return False
+                
+                if not objects:
+                    print("⚠️ Objects dizisi boş, hiç tıklama yapılmayacak")
+                    click_count = 0
+                else:
+                    click_count = objects[0]  # İlk değeri al
+                    print(f"🎯 Tıklama sayısı: {click_count}")
+                
+                # Right arrow butonunu bul ve tıkla
+                if click_count > 0:
+                    print(f"🔄 Right arrow butonuna {click_count} kez tıklanıyor...")
+                    
+                    # Right arrow butonunu bul (birden fazla selector dene)
+                    right_arrow_selectors = [
+                        'a[aria-label="Navigate to next image"]',
+                        'a.right-arrow',
+                        'a.sc-7csxyx-2.sc-7csxyx-4.ioYDmH.gOozvt.right-arrow'
+                    ]
+                    
+                    right_arrow_element = None
+                    for selector in right_arrow_selectors:
+                        try:
+                            if self.selenium.is_element_visible(selector):
+                                right_arrow_element = selector
+                                print(f"✅ Right arrow butonu bulundu: {selector}")
+                                break
+                        except:
+                            continue
+                    
+                    if right_arrow_element:
+                        # Belirtilen sayı kadar tıkla
+                        for i in range(click_count):
+                            print(f"🖱️ Tıklama {i+1}/{click_count}")
+                            self.selenium.click(right_arrow_element)
+                            self.selenium.sleep(0.8)  # Her tıklama arasında bekleme
+                        print(f"✅ {click_count} kez tıklama tamamlandı!")
+                    else:
+                        print("❌ Right arrow butonu bulunamadı!")
+                        return False
+                else:
+                    print("ℹ️ Tıklama gerekmiyor (objects: [0])")
+                
+                # Submit butonunu bul ve tıkla
+                print("📤 Submit butonuna tıklanıyor...")
+                submit_selectors = [
+                    'button.sc-nkuzb1-0.yuVdl.button',
+                    'button[class*="button"]',
+                    'button:contains("Submit")'
+                ]
+                
+                submit_element = None
+                for selector in submit_selectors:
+                    try:
+                        if self.selenium.is_element_visible(selector):
+                            submit_element = selector
+                            print(f"✅ Submit butonu bulundu: {selector}")
+                            break
+                    except:
+                        continue
+                
+                if submit_element:
+                    self.selenium.click(submit_element)
+                    print("✅ Submit butonu başarıyla tıklandı!")
+                    self.selenium.sleep(1)  # Submit sonrası kısa bekleme
+                else:
+                    print("❌ Submit butonu bulunamadı!")
+                    return False
+                
+                print("✅ Captcha çözümü başarıyla uygulandı!")
+                return True
+                
+            elif isinstance(solution, str):
+                # Metin tabanlı çözümler (eski format)
+                print("⚠️ String format çözüm tespit edildi (eski format)")
                 if "click" in solution.lower() or "tıkla" in solution.lower():
                     print("🖱️ Tıklama çözümü tespit edildi")
-                    # Burada belirli elementlere tıklama işlemi yapılabilir
-                    
                 elif "type" in solution.lower() or "yaz" in solution.lower():
                     print("⌨️ Metin girme çözümü tespit edildi")
-                    # Burada metin girme işlemi yapılabilir
-                    
                 else:
                     print(f"ℹ️ Genel çözüm: {solution}")
-                    
+                return True
+                
             elif isinstance(solution, list):
                 print(f"📋 Liste çözümü: {solution}")
-                # Liste halinde gelen çözümler (örn: [1, 3, 5] - hangi resimlere tıklanacağı)
+                return True
                 
             else:
                 print(f"⚠️ Bilinmeyen çözüm türü: {type(solution)}")
+                return False
                 
-            print("✅ Captcha çözümü uygulandı!")
-            return True
-            
         except Exception as e:
             print(f"❌ Captcha çözümü uygulama hatası: {e}")
+            print(f"🔍 Hata detayı: {type(e).__name__}")
             return False
     
     def wait_for_captcha(self, max_wait_time=30):
