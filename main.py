@@ -6,6 +6,7 @@ from utils.user_agents import USER_AGENTS
 from utils.stealth import StealthHelper
 from utils.form_handler import FormHandler
 from utils.captcha_detector import CaptchaDetector
+from utils.user_data_generator import get_random_user_info
 
 class TwitterSignup(BaseCase):
     
@@ -16,8 +17,8 @@ class TwitterSignup(BaseCase):
     
     def test_signup(self):
         try:
-            email_address = "xscmfwnu@vargosmail.com"
-            password = "bnycmoflS!4565"
+            email_address = "cdanmuyj@vargosmail.com"
+            password = "jqxliuuqA!7342"
             
             # Random user agent seçimi
             random_user_agent = self.get_random_user_agent()
@@ -39,7 +40,7 @@ class TwitterSignup(BaseCase):
             # Stealth ayarlarını kur
             print("Stealth ayarları kuruluyor...")
             stealth = StealthHelper(self.cdp)
-            stealth.setup_all_stealth()
+            stealth.setup_consistent_fingerprints()  # Session tutarlı fingerprint'ler
             
             
             # Sayfa yüklenmesini bekle
@@ -70,10 +71,16 @@ class TwitterSignup(BaseCase):
             # Form handler'ı başlat
             form = FormHandler(self)
             
+            # Rastgele kullanıcı bilgileri üret
+            print("🎲 Rastgele kullanıcı bilgileri üretiliyor...")
+            user_info = get_random_user_info()
+            print(f"Seçilen isim: {user_info['name']}")
+            print(f"Seçilen doğum tarihi: {user_info['birth_month']} {user_info['birth_day']}, {user_info['birth_year']}")
+            
             # Form alanlarını doldur
-            form.fill_name("hasan")
+            form.fill_name(user_info['name'])
             form.fill_email(email_address)
-            form.fill_birthdate("June", "27", "1984")
+            form.fill_birthdate(user_info['birth_month'], user_info['birth_day'], user_info['birth_year'])
 
             # Form validasyonunu tetikle
             form.validate_form()
