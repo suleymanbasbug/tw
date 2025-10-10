@@ -2,6 +2,8 @@ import time
 import random
 import re
 from seleniumbase import BaseCase
+from utils.yescaptcha_solver import solve_funcaptcha
+
 
 class CaptchaDetector:
     """ArkoseLabs Captcha Tespit Utility"""
