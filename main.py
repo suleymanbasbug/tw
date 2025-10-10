@@ -8,6 +8,7 @@ from utils.form_handler import FormHandler
 from utils.captcha_detector import CaptchaDetector
 from utils.user_data_generator import get_random_user_info
 from utils.js_instrumentation_bypass import JSInstrumentationBypass
+from utils.request_interceptor import RequestInterceptor
 
 class TwitterSignup(BaseCase):
     
@@ -30,9 +31,19 @@ class TwitterSignup(BaseCase):
             self.activate_cdp_mode("https://x.com/i/flow/signup")
             print("CDP Mode aktif edildi!")
             
-           
+            # 1. ÖNCE JS Instrumentation bypass (RF hesaplamasını engelle)
+            print("\n🔒 JS Instrumentation bypass ERKEN inject ediliyor...")
+            js_bypass = JSInstrumentationBypass(self.cdp)
+            js_bypass.setup_early_injection()
+            print("✅ JS Instrumentation bypass kuruldu!")
             
-            # Captcha tespit sistemini erken başlat (CDP aktif olduktan hemen sonra)
+            # 2. SONRA Twitter API Request Override (payload'ı değiştir)
+            print("\n🎯 Twitter API Request Override kuruluyor...")
+            interceptor = RequestInterceptor(self.driver)
+            interceptor.setup_twitter_request_override(strategy="zero_rf")
+            print("✅ Twitter API Request Override kuruldu!")
+            
+            # 3. Captcha tespit sistemini erken başlat
             print("\n🎯 Captcha tespit sistemi erken başlatılıyor...")
             captcha_detector = CaptchaDetector(self)
             captcha_detector.setup_network_monitoring()
@@ -40,7 +51,7 @@ class TwitterSignup(BaseCase):
             # Sayfa yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
             
-            # Stealth ayarlarını kur
+            # 4. EN SON Stealth ayarlarını kur
             print("Stealth ayarları kuruluyor...")
             stealth = StealthHelper(self.cdp)
             stealth.setup_consistent_fingerprints()  # Session tutarlı fingerprint'ler
@@ -51,22 +62,85 @@ class TwitterSignup(BaseCase):
             
             # Create account butonunu bul ve CDP Mode ile tıkla
             print("Create account butonu aranıyor...")
-            self.wait_for_element('//button[contains(text(), "Create account")]', timeout=20)
             
-            # CDP Mode ile insan benzeri tıklama
-            self.sleep(random.uniform(1.5, 2.5))
-            self.cdp.click('//button[contains(text(), "Create account")]')
-            print("Create account butonu CDP Mode ile tıklandı!")
+            # Alternatif selector'ları dene (div elementlerini de içerir)
+            create_account_selectors = [
+                '//div[.//span[contains(text(), "Create account")]]',  # Div içinde span (ÖNCELIKLI)
+                '//span[contains(text(), "Create account")]/ancestor::div[contains(@class, "css-")]',  # CSS class'lı div
+                '//div[contains(text(), "Create account")]',  # Doğrudan div
+                '//span[contains(text(), "Create account")]/parent::*',  # Span'ın parent'ı (div veya button)
+                '//button[contains(text(), "Create account")]',
+                '//button[contains(text(), "Create")]',
+                '//a[contains(text(), "Create account")]',
+                '//*[contains(text(), "Create account")]'  # Her türlü element
+            ]
+            
+            button_found = False
+            used_selector = None
+            
+            for i, selector in enumerate(create_account_selectors):
+                try:
+                    print(f"Selector {i+1} deneniyor: {selector[:50]}...")
+                    self.wait_for_element(selector, timeout=3)
+                    print(f"✅ Buton bulundu! Selector: {selector}")
+                    button_found = True
+                    used_selector = selector
+                    break
+                    
+                except Exception as e:
+                    print(f"❌ Selector {i+1} başarısız")
+                    continue
+            
+            if button_found:
+                # CDP Mode ile insan benzeri tıklama
+                self.sleep(random.uniform(1.5, 2.5))
+                self.cdp.click(used_selector)
+                print("Create account butonu CDP Mode ile tıklandı!")
+            else:
+                print("❌ Create account butonu bulunamadı!")
+                raise Exception("Create account butonu hiçbir selector ile bulunamadı!")
 
             # Sayfanın yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
 
             # Use email instead butonunu bul ve CDP Mode ile tıkla
             print("Use email instead butonu aranıyor...")
-            self.wait_for_element('//button[contains(text(), "Use email instead")]', timeout=20)
-            self.sleep(random.uniform(1.5, 2.5))
-            self.cdp.click('//button[contains(text(), "Use email instead")]')
-            print("Use email instead butonu CDP Mode ile tıklandı!")
+            
+            # Alternatif selector'ları dene (span elementlerini de içerir)
+            use_email_selectors = [
+                '//button[.//span[contains(text(), "Use email instead")]]',  # Button > span (ÖNCELIKLI)
+                '//span[contains(text(), "Use email instead")]/ancestor::button',  # Span'ın parent button'ı
+                '//span[contains(text(), "Use email")]/ancestor::button',  # Daha kısa text
+                '//*[contains(text(), "Use email instead")]/ancestor::button',  # Herhangi bir element
+                '//button[contains(@role, "button")][.//span[contains(text(), "email")]]',  # Role + text
+                '//button[contains(text(), "Use email instead")]',  # Doğrudan button text (fallback)
+                '//*[contains(text(), "Use email instead")]'  # Her türlü element
+            ]
+            
+            email_button_found = False
+            used_email_selector = None
+            
+            for i, selector in enumerate(use_email_selectors):
+                try:
+                    print(f"Selector {i+1} deneniyor: {selector[:50]}...")
+                    self.wait_for_element(selector, timeout=3)
+                    print(f"✅ Buton bulundu! Selector: {selector}")
+                    email_button_found = True
+                    used_email_selector = selector
+                    break
+                    
+                except Exception as e:
+                    print(f"❌ Selector {i+1} başarısız")
+                    continue
+            
+            if email_button_found:
+                # CDP Mode ile insan benzeri tıklama
+                self.sleep(random.uniform(1.5, 2.5))
+                self.cdp.click(used_email_selector)
+                print("Use email instead butonu CDP Mode ile tıklandı!")
+            else:
+                print("❌ Use email instead butonu bulunamadı!")
+                raise Exception("Use email instead butonu hiçbir selector ile bulunamadı!")
 
             # Sayfanın yüklenmesini bekle
             self.sleep(random.uniform(3.0, 5.0))
@@ -139,10 +213,9 @@ class TwitterSignup(BaseCase):
             if verification_code:
                 print(f"Doğrulama kodu alındı: {verification_code}")
 
-                 # JS Instrumentation bypass'ı ERKEN inject et (stealth'den önce!)
-                print("\n🔒 JS Instrumentation bypass ERKEN inject ediliyor...")
-                js_bypass = JSInstrumentationBypass(self.cdp)
-                js_bypass.setup_complete_bypass()
+                # JS Instrumentation bypass'ı güçlendir (email doğrulama için)
+                print("\n🔒 JS Instrumentation bypass güçlendiriliyor...")
+                js_bypass.setup_rf_values_override()
                 
                 # Doğrulama kodunu gir
                 form.fill_verification_code(verification_code)

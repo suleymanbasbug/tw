@@ -21,7 +21,25 @@ class JSInstrumentationBypass:
         self.cdp.evaluate("""
             // Twitter fingerprint collection bypass
             (function() {
-                // 1. Object.getOwnPropertyDescriptor override
+                console.log('🚀 JS Instrumentation bypass başlatılıyor...');
+                
+                // 1. RF hesaplama fonksiyonlarını TAMAMEN engelle
+                const originalPerformanceNow = performance.now;
+                performance.now = function() {
+                    // Timing hesaplamalarını manipüle et
+                    return originalPerformanceNow.call(this) + Math.random() * 10;
+                };
+                
+                // 2. Coverage fonksiyonlarını engelle (__cov_*)
+                const coverageFunctions = ['__cov_', '__coverage__', '__coverage'];
+                coverageFunctions.forEach(funcName => {
+                    if (window[funcName]) {
+                        window[funcName] = {};
+                        Object.freeze(window[funcName]);
+                    }
+                });
+                
+                // 3. Object.getOwnPropertyDescriptor override
                 const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
                 Object.getOwnPropertyDescriptor = function(obj, prop) {
                     // Chrome automation kontrollerini bypass et
@@ -31,7 +49,7 @@ class JSInstrumentationBypass:
                     return originalGetOwnPropertyDescriptor.apply(this, arguments);
                 };
                 
-                // 2. Function.toString override (anti-override detection)
+                // 4. Function.toString override (anti-override detection)
                 const originalToString = Function.prototype.toString;
                 Function.prototype.toString = function() {
                     if (this === Object.getOwnPropertyDescriptor) {
@@ -40,14 +58,14 @@ class JSInstrumentationBypass:
                     return originalToString.apply(this, arguments);
                 };
                 
-                // 3. Chrome runtime detection bypass
+                // 5. Chrome runtime detection bypass
                 if (window.chrome && window.chrome.runtime) {
                     // Chrome extension API'yi maskele
                     delete window.chrome.runtime.sendMessage;
                     delete window.chrome.runtime.connect;
                 }
                 
-                // 4. Error stack trace sanitization (bot detection'dan kaçınmak için)
+                // 6. Error stack trace sanitization (bot detection'dan kaçınmak için)
                 const OriginalError = window.Error;
                 window.Error = function(...args) {
                     const error = new OriginalError(...args);
@@ -62,7 +80,7 @@ class JSInstrumentationBypass:
                 };
                 window.Error.prototype = OriginalError.prototype;
                 
-                // 5. Navigator properties sanitization
+                // 7. Navigator properties sanitization
                 const navigatorProps = {
                     webdriver: false,
                     plugins: {
@@ -89,7 +107,7 @@ class JSInstrumentationBypass:
                     }
                 }
                 
-                // 6. Performance timing fingerprint bypass
+                // 8. Performance timing fingerprint bypass
                 if (window.performance && window.performance.timing) {
                     const originalGetEntries = performance.getEntries;
                     performance.getEntries = function() {
@@ -102,7 +120,7 @@ class JSInstrumentationBypass:
                     };
                 }
                 
-                // 7. Console debug detection bypass
+                // 9. Console debug detection bypass
                 const originalLog = console.log;
                 const originalDebug = console.debug;
                 console.log = function(...args) {
@@ -118,6 +136,21 @@ class JSInstrumentationBypass:
                 console.debug = function() {
                     // Debug mesajlarını tamamen sustur (fingerprinting önlemi)
                     return;
+                };
+                
+                // 10. RF objelerini freeze et (değiştirilemez yap)
+                const originalDefineProperty = Object.defineProperty;
+                Object.defineProperty = function(obj, prop, descriptor) {
+                    // RF objelerini koru
+                    if (prop === 'rf' && descriptor && descriptor.value) {
+                        console.log('🔒 RF objesi korunuyor, değerler 0 yapılıyor...');
+                        if (typeof descriptor.value === 'object') {
+                            Object.keys(descriptor.value).forEach(key => {
+                                descriptor.value[key] = 0;
+                            });
+                        }
+                    }
+                    return originalDefineProperty.apply(this, arguments);
                 };
                 
                 console.log('✅ JS Instrumentation bypass aktif!');
@@ -136,6 +169,8 @@ class JSInstrumentationBypass:
         self.cdp.evaluate("""
             // Twitter RF değerleri override
             (function() {
+                console.log('🔐 RF değerleri override başlatılıyor...');
+                
                 // RF değerlerini toplayan fonksiyonları override et
                 const originalFetch = window.fetch;
                 window.fetch = function(url, options) {
@@ -147,29 +182,42 @@ class JSInstrumentationBypass:
                         if (options && options.body) {
                             try {
                                 const body = JSON.parse(options.body);
+                                console.log('📦 Orijinal payload alındı');
                                 
                                 // js_instrumentation kontrolü
                                 if (body.subtask_inputs) {
-                                    body.subtask_inputs.forEach(input => {
+                                    body.subtask_inputs.forEach((input, index) => {
                                         if (input.sign_up && input.sign_up.js_instrumentation) {
-                                            console.log('🔍 js_instrumentation bulundu, manipüle ediliyor...');
+                                            console.log(`🔍 js_instrumentation bulundu (index: ${index}), manipüle ediliyor...`);
                                             
                                             // Response'u parse et
                                             try {
                                                 const jsInst = JSON.parse(input.sign_up.js_instrumentation.response);
+                                                console.log('📊 Orijinal js_instrumentation:', jsInst);
                                                 
-                                                // RF değerlerini gerçekçi değerlerle değiştir
+                                                // RF değerlerini MUTLAKA 0 yap
                                                 if (jsInst.rf) {
-                                                    // Tüm rf değerlerini 0 yap (en güvenli yöntem)
+                                                    const originalRf = { ...jsInst.rf };
+                                                    console.log('🔢 Orijinal RF değerleri:', originalRf);
+                                                    
+                                                    // Tüm rf değerlerini 0 yap
                                                     Object.keys(jsInst.rf).forEach(key => {
                                                         jsInst.rf[key] = 0;
                                                     });
                                                     
-                                                    console.log('✅ RF değerleri temizlendi (hepsi 0)');
+                                                    console.log('✅ RF değerleri 0 yapıldı:', jsInst.rf);
+                                                }
+                                                
+                                                // S değerini de temizle
+                                                if (jsInst.s) {
+                                                    jsInst.s = "";
+                                                    console.log('🧹 S değeri temizlendi');
                                                 }
                                                 
                                                 // Güncellenmiş response'u geri yaz
                                                 input.sign_up.js_instrumentation.response = JSON.stringify(jsInst);
+                                                console.log('📦 Güncellenmiş js_instrumentation response yazıldı');
+                                                
                                             } catch (e) {
                                                 console.log('⚠️ js_instrumentation parse hatası:', e);
                                             }
@@ -179,6 +227,7 @@ class JSInstrumentationBypass:
                                 
                                 // Güncellenmiş body'yi options'a geri yaz
                                 options.body = JSON.stringify(body);
+                                console.log('📦 Güncellenmiş payload hazırlandı');
                                 
                             } catch (e) {
                                 console.log('⚠️ Request body parse hatası:', e);
@@ -188,6 +237,60 @@ class JSInstrumentationBypass:
                     
                     // Orijinal fetch'i çağır
                     return originalFetch.apply(this, arguments);
+                };
+                
+                // XHR override (backup)
+                const originalXHROpen = XMLHttpRequest.prototype.open;
+                const originalXHRSend = XMLHttpRequest.prototype.send;
+                
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    this._url = url;
+                    this._method = method;
+                    return originalXHROpen.apply(this, arguments);
+                };
+                
+                XMLHttpRequest.prototype.send = function(body) {
+                    if (this._url && this._url.includes('/onboarding/task.json')) {
+                        console.log('🎯 XHR ile onboarding/task.json yakalandı!');
+                        
+                        if (body) {
+                            try {
+                                const parsed = JSON.parse(body);
+                                console.log('📦 XHR Orijinal payload:', parsed);
+                                
+                                if (parsed.subtask_inputs) {
+                                    parsed.subtask_inputs.forEach((input, index) => {
+                                        if (input.sign_up && input.sign_up.js_instrumentation) {
+                                            console.log(`🔍 XHR js_instrumentation bulundu (index: ${index})`);
+                                            
+                                            try {
+                                                const jsInst = JSON.parse(input.sign_up.js_instrumentation.response);
+                                                
+                                                if (jsInst.rf) {
+                                                    Object.keys(jsInst.rf).forEach(key => {
+                                                        jsInst.rf[key] = 0;
+                                                    });
+                                                    console.log('✅ XHR RF değerleri 0 yapıldı');
+                                                }
+                                                
+                                                input.sign_up.js_instrumentation.response = JSON.stringify(jsInst);
+                                                
+                                            } catch (e) {
+                                                console.log('⚠️ XHR js_instrumentation parse hatası:', e);
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                body = JSON.stringify(parsed);
+                                
+                            } catch (e) {
+                                console.log('⚠️ XHR Request body parse hatası:', e);
+                            }
+                        }
+                    }
+                    
+                    return originalXHRSend.call(this, body);
                 };
                 
                 // fetch.toString() override (anti-detection)
