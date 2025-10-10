@@ -51,19 +51,35 @@ class CaptchaDetector:
         """Captcha elementlerinin DOM'da olup olmadığını kontrol et (retry mekanizması ile)"""
         print("🔍 Captcha elementleri kontrol ediliyor (retry mekanizması ile)...")
         
-        max_retries = 30  # 15 saniye boyunca her 0.5 saniyede kontrol
+        # CDP Mode kontrolü ve reconnect
+        try:
+            print("🔄 CDP Mode kontrolü yapılıyor...")
+            self.selenium.reconnect()
+            print("✅ Reconnect başarılı! Standart Selenium metodları aktif.")
+            self.selenium.sleep(1)  # Reconnect sonrası kısa bekleme
+        except Exception as reconnect_error:
+            print(f"⚠️ Reconnect hatası (devam ediliyor): {reconnect_error}")
+        
+        max_retries = 40  # 20 saniye boyunca her 0.5 saniyede kontrol (artırıldı)
         retry_count = 0
         
         while retry_count < max_retries:
             try:
                 print(f"🔍 Kontrol denemesi {retry_count + 1}/{max_retries}")
                 
+                # Önce sayfa yüklenme durumunu kontrol et
+                page_state = self.selenium.execute_script("return document.readyState")
+                print(f"📄 Sayfa durumu: {page_state}")
+                
                 # Ana captcha iframe'ini kontrol et (#arkoseFrame)
+                print("🎯 #arkoseFrame aranıyor...")
                 if self.selenium.is_element_visible("#arkoseFrame"):
                     print("✅ Ana captcha iframe (#arkoseFrame) bulundu!")
                     
                     # iframe src attribute'unu kontrol et
                     iframe_src = self.selenium.get_attribute("#arkoseFrame", "src")
+                    print(f"🔗 iframe src: {iframe_src}")
+                    
                     if iframe_src and "arkoselabs.com" in iframe_src:
                         print(f"✅ iframe src doğrulandı: {iframe_src}")
                         
@@ -89,6 +105,8 @@ class CaptchaDetector:
                     print("❌ Ana captcha iframe (#arkoseFrame) bulunamadı")
                     
                     # Alternatif selector'ları dene
+                    print("🔍 Alternatif selector'lar deneniyor...")
+                    
                     if self.selenium.is_element_visible("iframe[id='arkoseFrame']"):
                         print("✅ Alternatif iframe selector bulundu (iframe[id='arkoseFrame'])")
                         self.captcha_detected = True
@@ -104,12 +122,24 @@ class CaptchaDetector:
                         self.captcha_detected = True
                         self.show_captcha_info()
                         return
+                    else:
+                        # Tüm iframe'leri listele (debug için)
+                        try:
+                            all_iframes = self.selenium.find_elements("iframe")
+                            print(f"🔍 Sayfadaki tüm iframe'ler ({len(all_iframes)} adet):")
+                            for i, iframe in enumerate(all_iframes):
+                                iframe_id = iframe.get_attribute("id") or "id_yok"
+                                iframe_src = iframe.get_attribute("src") or "src_yok"
+                                iframe_title = iframe.get_attribute("title") or "title_yok"
+                                print(f"  {i+1}. id='{iframe_id}', src='{iframe_src[:50]}...', title='{iframe_title}'")
+                        except Exception as debug_error:
+                            print(f"⚠️ iframe debug bilgisi alınamadı: {debug_error}")
                 
                 # Başarısız deneme, 0.5 saniye bekle
                 retry_count += 1
                 if retry_count < max_retries:
-                    # İlk 3 saniye hızlı kontrol (6 deneme), sonra yavaşlat
-                    if retry_count <= 6:
+                    # İlk 5 saniye hızlı kontrol (10 deneme), sonra yavaşlat
+                    if retry_count <= 10:
                         print(f"⏳ 0.5 saniye bekleniyor... (hızlı kontrol - deneme {retry_count + 1}/{max_retries})")
                     else:
                         print(f"⏳ 0.5 saniye bekleniyor... (deneme {retry_count + 1}/{max_retries})")
@@ -121,7 +151,7 @@ class CaptchaDetector:
                 if retry_count < max_retries:
                     self.selenium.sleep(0.5)
         
-        print("❌ Captcha elementleri 15 saniye boyunca tespit edilemedi!")
+        print("❌ Captcha elementleri 20 saniye boyunca tespit edilemedi!")
     
     def wait_for_iframe_content(self):
         """iframe içeriğinin yüklenmesini bekle (basitleştirilmiş versiyon)"""
@@ -365,36 +395,87 @@ class CaptchaDetector:
             print("🔄 CDP Mode'dan standart Selenium'a geçiş yapılıyor...")
             self.selenium.reconnect()
             print("✅ Reconnect başarılı! Standart Selenium metodları aktif.")
+            self.selenium.sleep(2)  # Reconnect sonrası bekleme artırıldı
             
             # 2. Ana captcha iframe'ine geçiş yap (#arkoseFrame)
             print("📱 Ana captcha iframe'ine (#arkoseFrame) geçiş yapılıyor...")
-            self.selenium.wait_for_element("#arkoseFrame", timeout=10)
+            
+            # iframe'in varlığını önce kontrol et
+            if not self.selenium.is_element_visible("#arkoseFrame"):
+                print("❌ #arkoseFrame bulunamadı! Alternatif selector'lar deneniyor...")
+                if self.selenium.is_element_visible("iframe[id='arkoseFrame']"):
+                    print("✅ Alternatif selector ile bulundu")
+                elif self.selenium.is_element_visible("iframe[src*='arkoselabs.com']"):
+                    print("✅ Genel ArkoseLabs iframe bulundu")
+                else:
+                    print("❌ Hiçbir iframe bulunamadı!")
+                    return False
+            
+            self.selenium.wait_for_element("#arkoseFrame", timeout=15)  # Timeout artırıldı
             self.selenium.switch_to_frame("#arkoseFrame")
             print("✅ #arkoseFrame'e geçiş başarılı!")
+            self.selenium.sleep(1)  # iframe geçişi sonrası bekleme
             
             # 3. Orta iframe'e geçiş yap (Verification challenge iframe)
             print("📱 Orta iframe'e (Verification challenge) geçiş yapılıyor...")
-            self.selenium.wait_for_element('iframe[title="Verification challenge"]', timeout=10)
-            self.selenium.switch_to_frame('iframe[title="Verification challenge"]')
-            print("✅ Verification challenge iframe'e geçiş başarılı!")
+            
+            # Orta iframe'in varlığını kontrol et
+            try:
+                self.selenium.wait_for_element('iframe[title="Verification challenge"]', timeout=15)
+                self.selenium.switch_to_frame('iframe[title="Verification challenge"]')
+                print("✅ Verification challenge iframe'e geçiş başarılı!")
+                self.selenium.sleep(1)  # iframe geçişi sonrası bekleme
+            except Exception as middle_frame_error:
+                print(f"⚠️ Orta iframe geçişinde hata: {middle_frame_error}")
+                print("🔄 Doğrudan game-core-frame'e geçiş deneniyor...")
+                # Ana frame'e geri dön
+                self.selenium.switch_to_default_content()
+                self.selenium.switch_to_frame("#arkoseFrame")
             
             # 4. En iç iframe'e geçiş yap (game-core-frame)
             print("📱 En iç iframe'e (#game-core-frame) geçiş yapılıyor...")
-            self.selenium.wait_for_element('#game-core-frame', timeout=10)
-            self.selenium.switch_to_frame('#game-core-frame')
-            print("✅ #game-core-frame'e geçiş başarılı!")
+            
+            try:
+                self.selenium.wait_for_element('#game-core-frame', timeout=15)
+                self.selenium.switch_to_frame('#game-core-frame')
+                print("✅ #game-core-frame'e geçiş başarılı!")
+                self.selenium.sleep(2)  # iframe geçişi sonrası bekleme
+            except Exception as inner_frame_error:
+                print(f"❌ En iç iframe geçişinde hata: {inner_frame_error}")
+                return False
             
             # 5. Authenticate butonunun yüklenmesini bekle
             print("⏳ Authenticate butonu bekleniyor...")
-            self.selenium.wait_for_element('button[data-theme="home.verifyButton"]', timeout=10)
-            print("✅ Authenticate butonu bulundu!")
-            self.selenium.sleep(2)
+            try:
+                self.selenium.wait_for_element('button[data-theme="home.verifyButton"]', timeout=15)
+                print("✅ Authenticate butonu bulundu!")
+                self.selenium.sleep(2)
+            except Exception as button_error:
+                print(f"❌ Authenticate butonu bulunamadı: {button_error}")
+                # Alternatif selector'ları dene
+                try:
+                    self.selenium.wait_for_element('button:contains("Authenticate")', timeout=5)
+                    print("✅ Alternatif Authenticate butonu bulundu!")
+                except:
+                    print("❌ Hiçbir Authenticate butonu bulunamadı!")
+                    return False
             
             # 6. Butona tıkla
             print("🖱️ Authenticate butonuna tıklanıyor...")
-            self.selenium.click('button[data-theme="home.verifyButton"]')
-            print("✅ Authenticate butonu başarıyla tıklandı!")
-            self.selenium.sleep(2)
+            try:
+                self.selenium.click('button[data-theme="home.verifyButton"]')
+                print("✅ Authenticate butonu başarıyla tıklandı!")
+            except Exception as click_error:
+                print(f"⚠️ Ana selector ile tıklama başarısız: {click_error}")
+                # Alternatif tıklama yöntemi
+                try:
+                    self.selenium.click('button:contains("Authenticate")')
+                    print("✅ Alternatif Authenticate butonu tıklandı!")
+                except Exception as alt_click_error:
+                    print(f"❌ Alternatif tıklama da başarısız: {alt_click_error}")
+                    return False
+            
+            self.selenium.sleep(3)  # Tıklama sonrası bekleme artırıldı
             
             # 7. Challenge text'ini al ve temizle
             print("📝 Challenge text'i alınıyor...")
