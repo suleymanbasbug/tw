@@ -17,335 +17,388 @@ class StealthHelper:
         self.session_webgl_noise = random.randint(1, 1000)
         self.session_audio_noise = random.randint(1, 1000)
     
+    def _safe_evaluate(self, script, max_retries=3, retry_delay=1.0):
+        """CDP evaluate'i güvenli şekilde çalıştır - retry mekanizmalı"""
+        import time
+        for attempt in range(max_retries):
+            try:
+                result = self.cdp.evaluate(script)
+                if result is not None or attempt == max_retries - 1:
+                    return result
+                print(f"⚠️ CDP evaluate None döndü, {retry_delay}s sonra tekrar deneniyor... (deneme {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise Exception(f"CDP evaluate başarısız (3 deneme): {str(e)}")
+                print(f"⚠️ CDP evaluate hatası: {str(e)}, {retry_delay}s sonra tekrar deneniyor... (deneme {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+        return None
+    
     def setup_canvas_fingerprint_bypass(self):
         """Canvas fingerprinting bypass - Session tutarlı"""
         print("Canvas fingerprinting bypass ayarlanıyor...")
         canvas_noise = self.session_canvas_noise
-        self.cdp.evaluate(f"""
-            const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-            const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-            
-            // Session boyunca tutarlı canvas noise
-            const sessionCanvasNoise = {canvas_noise};
-            
-            HTMLCanvasElement.prototype.toDataURL = function(type) {{
-                if (type === 'image/png' && this.width === 280 && this.height === 60) {{
-                    return 'data:image/png;base64,iVBORw0KGg==';
-                }}
-                return originalToDataURL.apply(this, arguments);
-            }};
-            
-            CanvasRenderingContext2D.prototype.getImageData = function(sx, sy, sw, sh) {{
-                const imageData = originalGetImageData.apply(this, arguments);
-                // Canvas fingerprint'e session-specific noise ekle
-                for (let i = 0; i < imageData.data.length; i += 4) {{
-                    imageData.data[i] = (imageData.data[i] + sessionCanvasNoise) % 256;
-                }}
-                return imageData;
-            }};
+        try:
+            self._safe_evaluate(f"""
+            (function() {{
+                const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+                
+                // Session boyunca tutarlı canvas noise
+                const sessionCanvasNoise = {canvas_noise};
+                
+                HTMLCanvasElement.prototype.toDataURL = function(type) {{
+                    if (type === 'image/png' && this.width === 280 && this.height === 60) {{
+                        return 'data:image/png;base64,iVBORw0KGg==';
+                    }}
+                    return originalToDataURL.apply(this, arguments);
+                }};
+                
+                CanvasRenderingContext2D.prototype.getImageData = function(sx, sy, sw, sh) {{
+                    const imageData = originalGetImageData.apply(this, arguments);
+                    // Canvas fingerprint'e session-specific noise ekle
+                    for (let i = 0; i < imageData.data.length; i += 4) {{
+                        imageData.data[i] = (imageData.data[i] + sessionCanvasNoise) % 256;
+                    }}
+                    return imageData;
+                }};
+            }})();
         """)
-        print("✅ Canvas fingerprinting bypass aktif! (Session tutarlı)")
+            print("✅ Canvas fingerprinting bypass aktif! (Session tutarlı)")
+        except Exception as e:
+            raise Exception(f"Canvas fingerprint bypass başarısız: {str(e)}")
     
     def setup_webgl_fingerprint_bypass(self):
         """WebGL fingerprinting bypass - Session tutarlı"""
         print("WebGL fingerprinting bypass ayarlanıyor...")
         webgl_noise = self.session_webgl_noise
-        self.cdp.evaluate(f"""
-            const getParameter = WebGLRenderingContext.prototype.getParameter;
-            const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
-            
-            // Session boyunca tutarlı WebGL noise
-            const sessionWebGLNoise = {webgl_noise};
-            
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {{
-                if (parameter === 37445) {{
-                    return 'Intel Inc.';
-                }}
-                if (parameter === 37446) {{
-                    return 'Intel Iris OpenGL Engine';
-                }}
-                if (parameter === 7936) {{ // VENDOR
-                    return 'Intel Inc.';
-                }}
-                if (parameter === 7937) {{ // RENDERER
-                    return 'Intel Iris OpenGL Engine';
-                }}
-                if (parameter === 7938) {{ // VERSION
-                    return 'OpenGL ES 2.0';
-                }}
-                // Session-specific noise ekle
-                const result = getParameter.apply(this, arguments);
-                if (typeof result === 'string') {{
-                    return result + sessionWebGLNoise.toString().slice(0, 2);
-                }}
-                return result;
-            }};
-            
-            WebGL2RenderingContext.prototype.getParameter = function(parameter) {{
-                if (parameter === 37445) {{
-                    return 'Intel Inc.';
-                }}
-                if (parameter === 37446) {{
-                    return 'Intel Iris OpenGL Engine';
-                }}
-                if (parameter === 7936) {{ // VENDOR
-                    return 'Intel Inc.';
-                }}
-                if (parameter === 7937) {{ // RENDERER
-                    return 'Intel Iris OpenGL Engine';
-                }}
-                if (parameter === 7938) {{ // VERSION
-                    return 'OpenGL ES 3.0';
-                }}
-                // Session-specific noise ekle
-                const result = getParameter.apply(this, arguments);
-                if (typeof result === 'string') {{
-                    return result + sessionWebGLNoise.toString().slice(0, 2);
-                }}
-                return result;
-            }};
+        try:
+            self._safe_evaluate(f"""
+            (function() {{
+                const getParameter = WebGLRenderingContext.prototype.getParameter;
+                const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+                
+                // Session boyunca tutarlı WebGL noise
+                const sessionWebGLNoise = {webgl_noise};
+                
+                WebGLRenderingContext.prototype.getParameter = function(parameter) {{
+                    if (parameter === 37445) {{
+                        return 'Intel Inc.';
+                    }}
+                    if (parameter === 37446) {{
+                        return 'Intel Iris OpenGL Engine';
+                    }}
+                    if (parameter === 7936) {{ // VENDOR
+                        return 'Intel Inc.';
+                    }}
+                    if (parameter === 7937) {{ // RENDERER
+                        return 'Intel Iris OpenGL Engine';
+                    }}
+                    if (parameter === 7938) {{ // VERSION
+                        return 'OpenGL ES 2.0';
+                    }}
+                    // Session-specific noise ekle
+                    const result = getParameter.apply(this, arguments);
+                    if (typeof result === 'string') {{
+                        return result + sessionWebGLNoise.toString().slice(0, 2);
+                    }}
+                    return result;
+                }};
+                
+                WebGL2RenderingContext.prototype.getParameter = function(parameter) {{
+                    if (parameter === 37445) {{
+                        return 'Intel Inc.';
+                    }}
+                    if (parameter === 37446) {{
+                        return 'Intel Iris OpenGL Engine';
+                    }}
+                    if (parameter === 7936) {{ // VENDOR
+                        return 'Intel Inc.';
+                    }}
+                    if (parameter === 7937) {{ // RENDERER
+                        return 'Intel Iris OpenGL Engine';
+                    }}
+                    if (parameter === 7938) {{ // VERSION
+                        return 'OpenGL ES 3.0';
+                    }}
+                    // Session-specific noise ekle
+                    const result = getParameter.apply(this, arguments);
+                    if (typeof result === 'string') {{
+                        return result + sessionWebGLNoise.toString().slice(0, 2);
+                    }}
+                    return result;
+                }};
+            }})();
         """)
-        print("✅ WebGL fingerprinting bypass aktif! (Session tutarlı)")
+            print("✅ WebGL fingerprinting bypass aktif! (Session tutarlı)")
+        except Exception as e:
+            raise Exception(f"WebGL fingerprint bypass başarısız: {str(e)}")
     
     def setup_audio_fingerprint_bypass(self):
         """Audio fingerprinting bypass - Session tutarlı"""
         print("Audio fingerprinting bypass ayarlanıyor...")
         audio_noise = self.session_audio_noise
-        self.cdp.evaluate(f"""
-            const audioContext = window.AudioContext || window.webkitAudioContext;
-            if (audioContext) {{
-                const OriginalAudioContext = audioContext;
-                
-                // Session boyunca tutarlı audio noise
-                const sessionAudioNoise = {audio_noise};
-                
-                window.AudioContext = function() {{
-                    const context = new OriginalAudioContext();
-                    const originalCreateOscillator = context.createOscillator;
-                    const originalCreateAnalyser = context.createAnalyser;
-                    const originalCreateGain = context.createGain;
+        try:
+            self._safe_evaluate(f"""
+            (function() {{
+                const audioContext = window.AudioContext || window.webkitAudioContext;
+                if (audioContext) {{
+                    const OriginalAudioContext = audioContext;
                     
-                    context.createOscillator = function() {{
-                        const oscillator = originalCreateOscillator.apply(this, arguments);
-                        const originalStart = oscillator.start;
-                        const originalStop = oscillator.stop;
+                    // Session boyunca tutarlı audio noise
+                    const sessionAudioNoise = {audio_noise};
+                    
+                    window.AudioContext = function() {{
+                        const context = new OriginalAudioContext();
+                        const originalCreateOscillator = context.createOscillator;
+                        const originalCreateAnalyser = context.createAnalyser;
+                        const originalCreateGain = context.createGain;
                         
-                        oscillator.start = function() {{
-                            // Session-specific audio fingerprint değiştir
-                            this.frequency.value = this.frequency.value + (sessionAudioNoise % 100);
-                            return originalStart.apply(this, arguments);
+                        context.createOscillator = function() {{
+                            const oscillator = originalCreateOscillator.apply(this, arguments);
+                            const originalStart = oscillator.start;
+                            const originalStop = oscillator.stop;
+                            
+                            oscillator.start = function() {{
+                                // Session-specific audio fingerprint değiştir
+                                this.frequency.value = this.frequency.value + (sessionAudioNoise % 100);
+                                return originalStart.apply(this, arguments);
+                            }};
+                            
+                            oscillator.stop = function() {{
+                                return originalStop.apply(this, arguments);
+                            }};
+                            
+                            return oscillator;
                         }};
                         
-                        oscillator.stop = function() {{
-                            return originalStop.apply(this, arguments);
+                        context.createAnalyser = function() {{
+                            const analyser = originalCreateAnalyser.apply(this, arguments);
+                            const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
+                            
+                            analyser.getFloatFrequencyData = function(array) {{
+                                originalGetFloatFrequencyData.apply(this, arguments);
+                                // Session-specific noise ekle
+                                for (let i = 0; i < array.length; i++) {{
+                                    array[i] = array[i] + (sessionAudioNoise % 10) - 5;
+                                }}
+                            }};
+                            
+                            return analyser;
                         }};
                         
-                        return oscillator;
+                        context.createGain = function() {{
+                            const gain = originalCreateGain.apply(this, arguments);
+                            const originalSetValueAtTime = gain.gain.setValueAtTime;
+                            
+                            gain.gain.setValueAtTime = function(value, startTime) {{
+                                // Session-specific gain değişikliği
+                                const modifiedValue = value + (sessionAudioNoise % 100) / 10000;
+                                return originalSetValueAtTime.apply(this, [modifiedValue, startTime]);
+                            }};
+                            
+                            return gain;
+                        }};
+                        
+                        return context;
                     }};
-                    
-                    context.createAnalyser = function() {{
-                        const analyser = originalCreateAnalyser.apply(this, arguments);
-                        const originalGetFloatFrequencyData = analyser.getFloatFrequencyData;
-                        
-                        analyser.getFloatFrequencyData = function(array) {{
-                            originalGetFloatFrequencyData.apply(this, arguments);
-                            // Session-specific noise ekle
-                            for (let i = 0; i < array.length; i++) {{
-                                array[i] = array[i] + (sessionAudioNoise % 10) - 5;
-                            }}
-                        }};
-                        
-                        return analyser;
-                    }};
-                    
-                    context.createGain = function() {{
-                        const gain = originalCreateGain.apply(this, arguments);
-                        const originalSetValueAtTime = gain.gain.setValueAtTime;
-                        
-                        gain.gain.setValueAtTime = function(value, startTime) {{
-                            // Session-specific gain değişikliği
-                            const modifiedValue = value + (sessionAudioNoise % 100) / 10000;
-                            return originalSetValueAtTime.apply(this, [modifiedValue, startTime]);
-                        }};
-                        
-                        return gain;
-                    }};
-                    
-                    return context;
-                }};
-            }}
+                }}
+            }})();
         """)
-        print("✅ Audio fingerprinting bypass aktif! (Session tutarlı)")
+            print("✅ Audio fingerprinting bypass aktif! (Session tutarlı)")
+        except Exception as e:
+            raise Exception(f"Audio fingerprint bypass başarısız: {str(e)}")
     
     def setup_webdriver_stealth(self):
         """WebDriver tespitini engelle ve navigator properties'i güçlendir"""
         print("WebDriver stealth ayarları yapılıyor...")
-        self.cdp.evaluate("""
-            // WebDriver tespitini engelle
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined,
-            });
-            
-            // Plugin sayısını artır ve gerçekçi plugin listesi
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => {
-                    const plugins = [];
-                    // Chrome PDF Viewer
-                    plugins.push({
-                        name: 'Chrome PDF Plugin',
-                        description: 'Portable Document Format',
-                        filename: 'internal-pdf-viewer',
-                        length: 1
-                    });
-                    // Chrome PDF Viewer
-                    plugins.push({
-                        name: 'Chrome PDF Viewer',
-                        description: '',
-                        filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
-                        length: 1
-                    });
-                    // Native Client
-                    plugins.push({
-                        name: 'Native Client',
-                        description: '',
-                        filename: 'internal-nacl-plugin',
-                        length: 2
-                    });
-                    return plugins;
-                },
-            });
-            
-            // Language ayarları - ABD odaklı
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en'],
-            });
-            
-            Object.defineProperty(navigator, 'language', {
-                get: () => 'en-US',
-            });
-            
-            // Hardware concurrency (CPU çekirdek sayısı) - gerçekçi değer
-            Object.defineProperty(navigator, 'hardwareConcurrency', {
-                get: () => 8, // Yaygın CPU çekirdek sayısı
-            });
-            
-            // Device memory (RAM bilgisi) - gerçekçi değer
-            Object.defineProperty(navigator, 'deviceMemory', {
-                get: () => 8, // 8GB RAM
-            });
-            
-            // Connection type - gerçekçi değer
-            if (navigator.connection) {
-                Object.defineProperty(navigator.connection, 'effectiveType', {
-                    get: () => '4g',
+        try:
+            self._safe_evaluate("""
+            (function() {
+                // WebDriver tespitini engelle - sadece tanımlı değilse tanımla
+                try {
+                    if (!navigator.hasOwnProperty('webdriver')) {
+                        Object.defineProperty(navigator, 'webdriver', {
+                            get: () => undefined,
+                            configurable: true
+                        });
+                    }
+                } catch (e) {
+                    // Eğer tanımlanamazsa, sessizce geç
+                    console.log('WebDriver property zaten tanımlı, atlanıyor...');
+                }
+                
+                // Plugin sayısını artır ve gerçekçi plugin listesi
+                try {
+                    Object.defineProperty(navigator, 'plugins', {
+                    get: () => {
+                        const plugins = [];
+                        // Chrome PDF Viewer
+                        plugins.push({
+                            name: 'Chrome PDF Plugin',
+                            description: 'Portable Document Format',
+                            filename: 'internal-pdf-viewer',
+                            length: 1
+                        });
+                        // Chrome PDF Viewer
+                        plugins.push({
+                            name: 'Chrome PDF Viewer',
+                            description: '',
+                            filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
+                            length: 1
+                        });
+                        // Native Client
+                        plugins.push({
+                            name: 'Native Client',
+                            description: '',
+                            filename: 'internal-nacl-plugin',
+                            length: 2
+                        });
+                        return plugins;
+                    },
                 });
-                Object.defineProperty(navigator.connection, 'type', {
-                    get: () => 'wifi',
-                });
-                Object.defineProperty(navigator.connection, 'downlink', {
-                    get: () => 10,
-                });
-                Object.defineProperty(navigator.connection, 'rtt', {
-                    get: () => 50,
-                });
-            }
-            
-            // Platform details - Windows 10
-            Object.defineProperty(navigator, 'platform', {
-                get: () => 'Win32',
-            });
-            
-            Object.defineProperty(navigator, 'oscpu', {
-                get: () => 'Windows NT 10.0; Win64; x64',
-            });
-            
-            // Vendor information
-            Object.defineProperty(navigator, 'vendor', {
-                get: () => 'Google Inc.',
-            });
-            
-            Object.defineProperty(navigator, 'vendorSub', {
-                get: () => '',
-            });
-            
-            // Product information
-            Object.defineProperty(navigator, 'product', {
-                get: () => 'Gecko',
-            });
-            
-            Object.defineProperty(navigator, 'productSub', {
-                get: () => '20030107',
-            });
-            
-            // User agent consistency
-            Object.defineProperty(navigator, 'appName', {
-                get: () => 'Netscape',
-            });
-            
-            Object.defineProperty(navigator, 'appCodeName', {
-                get: () => 'Mozilla',
-            });
-            
-            Object.defineProperty(navigator, 'appVersion', {
-                get: () => '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            });
-            
-            // Permissions API bypass
-            const originalQuery = window.navigator.permissions.query;
-            window.navigator.permissions.query = (parameters) => (
-                parameters.name === 'notifications' ?
-                    Promise.resolve({ state: Notification.permission }) :
-                    originalQuery(parameters)
-            );
-            
-            // Battery API - gerçekçi değerler
-            if (navigator.getBattery) {
-                const originalGetBattery = navigator.getBattery;
-                navigator.getBattery = function() {
-                    return Promise.resolve({
-                        charging: true,
-                        chargingTime: 0,
-                        dischargingTime: Infinity,
-                        level: 0.85
+                } catch (e) {
+                    console.log('Plugins property zaten tanımlı, atlanıyor...');
+                }
+                
+                // Language ayarları - ABD odaklı
+                try {
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en'],
                     });
-                };
-            }
-            
-            // Screen properties - gerçekçi değerler
-            Object.defineProperty(screen, 'availWidth', {
-                get: () => 1920,
-            });
-            Object.defineProperty(screen, 'availHeight', {
-                get: () => 1040,
-            });
-            Object.defineProperty(screen, 'width', {
-                get: () => 1920,
-            });
-            Object.defineProperty(screen, 'height', {
-                get: () => 1080,
-            });
-            Object.defineProperty(screen, 'colorDepth', {
-                get: () => 24,
-            });
-            Object.defineProperty(screen, 'pixelDepth', {
-                get: () => 24,
-            });
-            
-            // Window properties
-            Object.defineProperty(window, 'outerWidth', {
-                get: () => 1920,
-            });
-            Object.defineProperty(window, 'outerHeight', {
-                get: () => 1080,
-            });
-            Object.defineProperty(window, 'innerWidth', {
-                get: () => 1920,
-            });
-            Object.defineProperty(window, 'innerHeight', {
-                get: () => 947,
-            });
+                    
+                    Object.defineProperty(navigator, 'language', {
+                        get: () => 'en-US',
+                    });
+                    
+                    // Hardware concurrency (CPU çekirdek sayısı) - gerçekçi değer
+                    Object.defineProperty(navigator, 'hardwareConcurrency', {
+                        get: () => 8, // Yaygın CPU çekirdek sayısı
+                    });
+                    
+                    // Device memory (RAM bilgisi) - gerçekçi değer
+                    Object.defineProperty(navigator, 'deviceMemory', {
+                        get: () => 8, // 8GB RAM
+                    });
+                
+                    // Connection type - gerçekçi değer
+                    if (navigator.connection) {
+                        Object.defineProperty(navigator.connection, 'effectiveType', {
+                            get: () => '4g',
+                        });
+                        Object.defineProperty(navigator.connection, 'type', {
+                            get: () => 'wifi',
+                        });
+                        Object.defineProperty(navigator.connection, 'downlink', {
+                            get: () => 10,
+                        });
+                        Object.defineProperty(navigator.connection, 'rtt', {
+                            get: () => 50,
+                        });
+                    }
+                
+                    // Platform details - Windows 10
+                    Object.defineProperty(navigator, 'platform', {
+                        get: () => 'Win32',
+                    });
+                    
+                    Object.defineProperty(navigator, 'oscpu', {
+                        get: () => 'Windows NT 10.0; Win64; x64',
+                    });
+                    
+                    // Vendor information
+                    Object.defineProperty(navigator, 'vendor', {
+                        get: () => 'Google Inc.',
+                    });
+                    
+                    Object.defineProperty(navigator, 'vendorSub', {
+                        get: () => '',
+                    });
+                    
+                    // Product information
+                    Object.defineProperty(navigator, 'product', {
+                        get: () => 'Gecko',
+                    });
+                    
+                    Object.defineProperty(navigator, 'productSub', {
+                        get: () => '20030107',
+                    });
+                    
+                    // User agent consistency
+                    Object.defineProperty(navigator, 'appName', {
+                        get: () => 'Netscape',
+                    });
+                    
+                    Object.defineProperty(navigator, 'appCodeName', {
+                        get: () => 'Mozilla',
+                    });
+                    
+                    Object.defineProperty(navigator, 'appVersion', {
+                        get: () => '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    });
+                    
+                    // Screen properties - gerçekçi değerler
+                    Object.defineProperty(screen, 'availWidth', {
+                        get: () => 1920,
+                    });
+                    Object.defineProperty(screen, 'availHeight', {
+                        get: () => 1040,
+                    });
+                    Object.defineProperty(screen, 'width', {
+                        get: () => 1920,
+                    });
+                    Object.defineProperty(screen, 'height', {
+                        get: () => 1080,
+                    });
+                    Object.defineProperty(screen, 'colorDepth', {
+                        get: () => 24,
+                    });
+                    Object.defineProperty(screen, 'pixelDepth', {
+                        get: () => 24,
+                    });
+                    
+                    // Window properties
+                    Object.defineProperty(window, 'outerWidth', {
+                        get: () => 1920,
+                    });
+                    Object.defineProperty(window, 'outerHeight', {
+                        get: () => 1080,
+                    });
+                    Object.defineProperty(window, 'innerWidth', {
+                        get: () => 1920,
+                    });
+                    Object.defineProperty(window, 'innerHeight', {
+                        get: () => 947,
+                    });
+                } catch (e) {
+                    console.log('Navigator properties zaten tanımlı, atlanıyor...');
+                }
+                
+                // Permissions API bypass
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission }) :
+                        originalQuery(parameters)
+                );
+                
+                // Battery API - gerçekçi değerler
+                if (navigator.getBattery) {
+                    const originalGetBattery = navigator.getBattery;
+                    navigator.getBattery = function() {
+                        return Promise.resolve({
+                            charging: true,
+                            chargingTime: 0,
+                            dischargingTime: Infinity,
+                            level: 0.85
+                        });
+                    };
+                }
+            })();
         """)
-        print("✅ WebDriver stealth ayarları aktif!")
+            print("✅ WebDriver stealth ayarları aktif!")
+        except Exception as e:
+            raise Exception(f"WebDriver stealth ayarları başarısız: {str(e)}")
     
     def setup_consistent_fingerprints(self):
         """Session boyunca tutarlı fingerprint ayarları"""
@@ -366,165 +419,172 @@ class StealthHelper:
     def block_webrtc_leak(self):
         """WebRTC IP sızıntısını engelle"""
         print("WebRTC IP sızıntısı engelleniyor...")
-        self.cdp.evaluate("""
-            // WebRTC'yi tamamen devre dışı bırak
-            const originalRTCPeerConnection = window.RTCPeerConnection;
-            const originalRTCSessionDescription = window.RTCSessionDescription;
-            const originalRTCIceCandidate = window.RTCIceCandidate;
-            
-            // RTCPeerConnection'ı override et
-            window.RTCPeerConnection = function(configuration) {
-                console.log('WebRTC blocked: RTCPeerConnection attempt');
-                return {
-                    createOffer: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    createAnswer: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    setLocalDescription: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    setRemoteDescription: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    addIceCandidate: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    getStats: function() { return Promise.reject(new Error('WebRTC blocked')); },
-                    close: function() {},
-                    localDescription: null,
-                    remoteDescription: null,
-                    connectionState: 'closed',
-                    iceConnectionState: 'closed',
-                    signalingState: 'closed'
+        try:
+            self._safe_evaluate("""
+            (function() {
+                // WebRTC'yi tamamen devre dışı bırak
+                const originalRTCPeerConnection = window.RTCPeerConnection;
+                const originalRTCSessionDescription = window.RTCSessionDescription;
+                const originalRTCIceCandidate = window.RTCIceCandidate;
+                
+                // RTCPeerConnection'ı override et
+                window.RTCPeerConnection = function(configuration) {
+                    console.log('WebRTC blocked: RTCPeerConnection attempt');
+                    return {
+                        createOffer: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        createAnswer: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        setLocalDescription: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        setRemoteDescription: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        addIceCandidate: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        getStats: function() { return Promise.reject(new Error('WebRTC blocked')); },
+                        close: function() {},
+                        localDescription: null,
+                        remoteDescription: null,
+                        connectionState: 'closed',
+                        iceConnectionState: 'closed',
+                        signalingState: 'closed'
+                    };
                 };
-            };
-            
-            // RTCSessionDescription'ı override et
-            window.RTCSessionDescription = function(descriptionInitDict) {
-                return {
-                    type: descriptionInitDict.type || 'offer',
-                    sdp: descriptionInitDict.sdp || ''
+                
+                // RTCSessionDescription'ı override et
+                window.RTCSessionDescription = function(descriptionInitDict) {
+                    return {
+                        type: descriptionInitDict.type || 'offer',
+                        sdp: descriptionInitDict.sdp || ''
+                    };
                 };
-            };
-            
-            // RTCIceCandidate'ı override et
-            window.RTCIceCandidate = function(candidateInitDict) {
-                return {
-                    candidate: candidateInitDict.candidate || '',
-                    sdpMid: candidateInitDict.sdpMid || null,
-                    sdpMLineIndex: candidateInitDict.sdpMLineIndex || null
+                
+                // RTCIceCandidate'ı override et
+                window.RTCIceCandidate = function(candidateInitDict) {
+                    return {
+                        candidate: candidateInitDict.candidate || '',
+                        sdpMid: candidateInitDict.sdpMid || null,
+                        sdpMLineIndex: candidateInitDict.sdpMLineIndex || null
+                    };
                 };
-            };
-            
-            // getUserMedia'yi engelle
-            const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
-            navigator.mediaDevices.getUserMedia = function(constraints) {
-                console.log('WebRTC blocked: getUserMedia attempt');
-                return Promise.reject(new Error('getUserMedia blocked'));
-            };
-            
-            // enumerateDevices'i engelle
-            const originalEnumerateDevices = navigator.mediaDevices.enumerateDevices;
-            navigator.mediaDevices.enumerateDevices = function() {
-                console.log('WebRTC blocked: enumerateDevices attempt');
-                return Promise.resolve([]);
-            };
-            
-            // getDisplayMedia'yı engelle
-            if (navigator.mediaDevices.getDisplayMedia) {
-                navigator.mediaDevices.getDisplayMedia = function(constraints) {
-                    console.log('WebRTC blocked: getDisplayMedia attempt');
-                    return Promise.reject(new Error('getDisplayMedia blocked'));
+                
+                // getUserMedia'yi engelle
+                const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+                navigator.mediaDevices.getUserMedia = function(constraints) {
+                    console.log('WebRTC blocked: getUserMedia attempt');
+                    return Promise.reject(new Error('getUserMedia blocked'));
                 };
-            }
-            
-            // Legacy getUserMedia'yi de engelle
-            if (navigator.getUserMedia) {
-                navigator.getUserMedia = function(constraints, success, error) {
-                    console.log('WebRTC blocked: legacy getUserMedia attempt');
-                    if (error) error(new Error('getUserMedia blocked'));
+                
+                // enumerateDevices'i engelle
+                const originalEnumerateDevices = navigator.mediaDevices.enumerateDevices;
+                navigator.mediaDevices.enumerateDevices = function() {
+                    console.log('WebRTC blocked: enumerateDevices attempt');
+                    return Promise.resolve([]);
                 };
-            }
-            
-            // webkitGetUserMedia'yi de engelle
-            if (navigator.webkitGetUserMedia) {
-                navigator.webkitGetUserMedia = function(constraints, success, error) {
-                    console.log('WebRTC blocked: webkitGetUserMedia attempt');
-                    if (error) error(new Error('webkitGetUserMedia blocked'));
-                };
-            }
-            
-            // mozGetUserMedia'yi de engelle
-            if (navigator.mozGetUserMedia) {
-                navigator.mozGetUserMedia = function(constraints, success, error) {
-                    console.log('WebRTC blocked: mozGetUserMedia attempt');
-                    if (error) error(new Error('mozGetUserMedia blocked'));
-                };
-            }
-            
-            // STUN/TURN sunucularını engelle
-            const originalFetch = window.fetch;
-            window.fetch = function(url, options) {
-                if (typeof url === 'string' && (url.includes('stun:') || url.includes('turn:'))) {
-                    console.log('WebRTC blocked: STUN/TURN request blocked');
-                    return Promise.reject(new Error('STUN/TURN blocked'));
+                
+                // getDisplayMedia'yı engelle
+                if (navigator.mediaDevices.getDisplayMedia) {
+                    navigator.mediaDevices.getDisplayMedia = function(constraints) {
+                        console.log('WebRTC blocked: getDisplayMedia attempt');
+                        return Promise.reject(new Error('getDisplayMedia blocked'));
+                    };
                 }
-                return originalFetch.apply(this, arguments);
-            };
-            
-            // XMLHttpRequest ile STUN/TURN isteklerini engelle
-            const originalXHROpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
-                if (typeof url === 'string' && (url.includes('stun:') || url.includes('turn:'))) {
-                    console.log('WebRTC blocked: XHR STUN/TURN request blocked');
-                    throw new Error('STUN/TURN blocked');
+                
+                // Legacy getUserMedia'yi de engelle
+                if (navigator.getUserMedia) {
+                    navigator.getUserMedia = function(constraints, success, error) {
+                        console.log('WebRTC blocked: legacy getUserMedia attempt');
+                        if (error) error(new Error('getUserMedia blocked'));
+                    };
                 }
-                return originalXHROpen.apply(this, arguments);
-            };
+                
+                // webkitGetUserMedia'yi de engelle
+                if (navigator.webkitGetUserMedia) {
+                    navigator.webkitGetUserMedia = function(constraints, success, error) {
+                        console.log('WebRTC blocked: webkitGetUserMedia attempt');
+                        if (error) error(new Error('webkitGetUserMedia blocked'));
+                    };
+                }
+                
+                // mozGetUserMedia'yi de engelle
+                if (navigator.mozGetUserMedia) {
+                    navigator.mozGetUserMedia = function(constraints, success, error) {
+                        console.log('WebRTC blocked: mozGetUserMedia attempt');
+                        if (error) error(new Error('mozGetUserMedia blocked'));
+                    };
+                }
+                
+                // STUN/TURN sunucularını engelle
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options) {
+                    if (typeof url === 'string' && (url.includes('stun:') || url.includes('turn:'))) {
+                        console.log('WebRTC blocked: STUN/TURN request blocked');
+                        return Promise.reject(new Error('STUN/TURN blocked'));
+                    }
+                    return originalFetch.apply(this, arguments);
+                };
+                
+                // XMLHttpRequest ile STUN/TURN isteklerini engelle
+                const originalXHROpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+                    if (typeof url === 'string' && (url.includes('stun:') || url.includes('turn:'))) {
+                        console.log('WebRTC blocked: XHR STUN/TURN request blocked');
+                        throw new Error('STUN/TURN blocked');
+                    }
+                    return originalXHROpen.apply(this, arguments);
+                };
+            })();
         """)
-        print("✅ WebRTC IP sızıntısı engellendi!")
+            print("✅ WebRTC IP sızıntısı engellendi!")
+        except Exception as e:
+            raise Exception(f"WebRTC IP sızıntısı engelleme başarısız: {str(e)}")
 
     def setup_timezone_locale(self):
         """Timezone ve locale tutarlılığını sağla"""
         print("Timezone ve locale tutarlılığı ayarlanıyor...")
-        self.cdp.evaluate("""
-            // ABD timezone'ları - rastgele seç
-            const usTimezones = [
-                'America/New_York',      // Eastern Time
-                'America/Chicago',       // Central Time  
-                'America/Denver',        // Mountain Time
-                'America/Los_Angeles',   // Pacific Time
-                'America/Phoenix',       // Mountain Time (no DST)
-                'America/Anchorage',     // Alaska Time
-                'Pacific/Honolulu'       // Hawaii Time
-            ];
-            
-            // Rastgele bir US timezone seç
-            const selectedTimezone = usTimezones[Math.floor(Math.random() * usTimezones.length)];
-            console.log('Selected timezone:', selectedTimezone);
-            
-            // Date.prototype.getTimezoneOffset override
-            const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
-            Date.prototype.getTimezoneOffset = function() {
-                // Seçilen timezone'a göre offset döndür
-                switch(selectedTimezone) {
-                    case 'America/New_York':
-                        return 300; // UTC-5 (EST) / UTC-4 (EDT)
-                    case 'America/Chicago':
-                        return 360; // UTC-6 (CST) / UTC-5 (CDT)
-                    case 'America/Denver':
-                        return 420; // UTC-7 (MST) / UTC-6 (MDT)
-                    case 'America/Los_Angeles':
-                        return 480; // UTC-8 (PST) / UTC-7 (PDT)
-                    case 'America/Phoenix':
-                        return 420; // UTC-7 (MST - no DST)
-                    case 'America/Anchorage':
-                        return 540; // UTC-9 (AKST) / UTC-8 (AKDT)
-                    case 'Pacific/Honolulu':
-                        return 600; // UTC-10 (HST - no DST)
-                    default:
-                        return 300; // Default to Eastern
-                }
-            };
-            
-            // Intl.DateTimeFormat override
-            const originalDateTimeFormat = Intl.DateTimeFormat;
-            Intl.DateTimeFormat = function(locales, options) {
-                // Timezone'u zorla ayarla
-                if (!options) options = {};
-                options.timeZone = selectedTimezone;
+        try:
+            self._safe_evaluate("""
+            (function() {
+                // ABD timezone'ları - rastgele seç
+                const usTimezones = [
+                    'America/New_York',      // Eastern Time
+                    'America/Chicago',       // Central Time  
+                    'America/Denver',        // Mountain Time
+                    'America/Los_Angeles',   // Pacific Time
+                    'America/Phoenix',       // Mountain Time (no DST)
+                    'America/Anchorage',     // Alaska Time
+                    'Pacific/Honolulu'       // Hawaii Time
+                ];
+                
+                // Rastgele bir US timezone seç
+                const selectedTimezone = usTimezones[Math.floor(Math.random() * usTimezones.length)];
+                console.log('Selected timezone:', selectedTimezone);
+                
+                // Date.prototype.getTimezoneOffset override
+                const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
+                Date.prototype.getTimezoneOffset = function() {
+                    // Seçilen timezone'a göre offset döndür
+                    switch(selectedTimezone) {
+                        case 'America/New_York':
+                            return 300; // UTC-5 (EST) / UTC-4 (EDT)
+                        case 'America/Chicago':
+                            return 360; // UTC-6 (CST) / UTC-5 (CDT)
+                        case 'America/Denver':
+                            return 420; // UTC-7 (MST) / UTC-6 (MDT)
+                        case 'America/Los_Angeles':
+                            return 480; // UTC-8 (PST) / UTC-7 (PDT)
+                        case 'America/Phoenix':
+                            return 420; // UTC-7 (MST - no DST)
+                        case 'America/Anchorage':
+                            return 540; // UTC-9 (AKST) / UTC-8 (AKDT)
+                        case 'Pacific/Honolulu':
+                            return 600; // UTC-10 (HST - no DST)
+                        default:
+                            return 300; // Default to Eastern
+                    }
+                };
+                
+                // Intl.DateTimeFormat override
+                const originalDateTimeFormat = Intl.DateTimeFormat;
+                Intl.DateTimeFormat = function(locales, options) {
+                    // Timezone'u zorla ayarla
+                    if (!options) options = {};
+                    options.timeZone = selectedTimezone;
                 return new originalDateTimeFormat(locales, options);
             };
             
@@ -560,16 +620,20 @@ class StealthHelper:
                 return originalToLocaleTimeString.call(this, locales, options);
             };
             
-            // Navigator.language consistency
-            Object.defineProperty(navigator, 'language', {
-                get: () => 'en-US',
-                configurable: true
-            });
-            
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en'],
-                configurable: true
-            });
+                // Navigator.language consistency
+                try {
+                    Object.defineProperty(navigator, 'language', {
+                        get: () => 'en-US',
+                        configurable: true
+                    });
+                    
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en'],
+                        configurable: true
+                    });
+                } catch (e) {
+                    console.log('Navigator language properties zaten tanımlı, atlanıyor...');
+                }
             
             // Intl.Locale override
             if (window.Intl && window.Intl.Locale) {
@@ -611,27 +675,32 @@ class StealthHelper:
                 };
             }
             
-            // ListFormat locale consistency
-            if (window.Intl && window.Intl.ListFormat) {
-                const originalListFormat = window.Intl.ListFormat;
-                window.Intl.ListFormat = function(locales, options) {
-                    if (!locales || locales.length === 0) {
-                        locales = ['en-US'];
-                    }
-                    return new originalListFormat(locales, options);
-                };
-            }
+                // ListFormat locale consistency
+                if (window.Intl && window.Intl.ListFormat) {
+                    const originalListFormat = window.Intl.ListFormat;
+                    window.Intl.ListFormat = function(locales, options) {
+                        if (!locales || locales.length === 0) {
+                            locales = ['en-US'];
+                        }
+                        return new originalListFormat(locales, options);
+                    };
+                }
+            })();
         """)
-        print("✅ Timezone ve locale tutarlılığı sağlandı!")
+            print("✅ Timezone ve locale tutarlılığı sağlandı!")
+        except Exception as e:
+            raise Exception(f"Timezone ve locale ayarları başarısız: {str(e)}")
 
     def setup_browser_properties(self):
         """Browser properties spoofing"""
         print("Browser properties spoofing ayarlanıyor...")
-        self.cdp.evaluate("""
-            // Chrome specific properties
-            if (!window.chrome) {
-                window.chrome = {};
-            }
+        try:
+            self._safe_evaluate("""
+            (function() {
+                // Chrome specific properties
+                if (!window.chrome) {
+                    window.chrome = {};
+                }
             
             // Chrome runtime
             window.chrome.runtime = {
@@ -709,7 +778,8 @@ class StealthHelper:
             };
             
             // PDF viewer plugin
-            Object.defineProperty(navigator, 'plugins', {
+            try {
+                Object.defineProperty(navigator, 'plugins', {
                 get: () => {
                     const plugins = [];
                     // Chrome PDF Viewer
@@ -778,9 +848,13 @@ class StealthHelper:
                     return plugins;
                 },
             });
+            } catch (e) {
+                console.log('Browser plugins property zaten tanımlı, atlanıyor...');
+            }
             
             // MIME types
-            Object.defineProperty(navigator, 'mimeTypes', {
+            try {
+                Object.defineProperty(navigator, 'mimeTypes', {
                 get: () => {
                     const mimeTypes = [];
                     // PDF MIME type
@@ -818,6 +892,9 @@ class StealthHelper:
                     return mimeTypes;
                 },
             });
+            } catch (e) {
+                console.log('Browser mimeTypes property zaten tanımlı, atlanıyor...');
+            }
             
             // Notification API consistency
             if (window.Notification) {
@@ -910,15 +987,20 @@ class StealthHelper:
                     return Promise.resolve('');
                 };
             }
+            })();
         """)
-        print("✅ Browser properties spoofing aktif!")
+            print("✅ Browser properties spoofing aktif!")
+        except Exception as e:
+            raise Exception(f"Browser properties spoofing başarısız: {str(e)}")
 
     def setup_request_headers(self):
         """Request headers tutarlılığını sağla"""
         print("Request headers tutarlılığı ayarlanıyor...")
-        self.cdp.evaluate("""
-            // Accept-Language tutarlılığı
-            const originalFetch = window.fetch;
+        try:
+            self._safe_evaluate("""
+            (function() {
+                // Accept-Language tutarlılığı
+                const originalFetch = window.fetch;
             window.fetch = function(url, options) {
                 if (!options) options = {};
                 if (!options.headers) options.headers = {};
@@ -1080,8 +1162,11 @@ class StealthHelper:
                     return new originalEventSource(url, eventSourceInitDict);
                 };
             }
+            })();
         """)
-        print("✅ Request headers tutarlılığı sağlandı!")
+            print("✅ Request headers tutarlılığı sağlandı!")
+        except Exception as e:
+            raise Exception(f"Request headers tutarlılığı başarısız: {str(e)}")
 
     def setup_all_stealth(self):
         """Tüm stealth ayarlarını çalıştır (geriye uyumluluk için)"""

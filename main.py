@@ -37,6 +37,8 @@ class TwitterSignup(BaseCase):
             print("CDP Mode ile Twitter signup sayfası açılıyor...")
             self.activate_cdp_mode("https://x.com/i/flow/signup")
             print("CDP Mode aktif edildi!")
+            print("CDP hazırlanıyor...")
+            self.sleep(2)  # CDP'nin tamamen hazır olması için
             
             # Captcha tespit sistemini erken başlat (CDP aktif olduktan hemen sonra)
             print("\n🎯 Captcha tespit sistemi erken başlatılıyor...")

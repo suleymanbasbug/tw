@@ -88,14 +88,16 @@ class HumanBehavior:
         # Mouse'u hareket ettir
         for x, y in curve_points:
             self.selenium.cdp.evaluate(f"""
-                // Mouse'u belirtilen pozisyona hareket ettir
-                const event = new MouseEvent('mousemove', {{
-                    clientX: {x},
-                    clientY: {y},
-                    bubbles: true,
-                    cancelable: true
-                }});
-                document.dispatchEvent(event);
+                (function() {{
+                    // Mouse'u belirtilen pozisyona hareket ettir
+                    const event = new MouseEvent('mousemove', {{
+                        clientX: {x},
+                        clientY: {y},
+                        bubbles: true,
+                        cancelable: true
+                    }});
+                    document.dispatchEvent(event);
+                }})();
             """)
             
             # Kısa bekleme
@@ -145,16 +147,18 @@ class HumanBehavior:
             
             # Hover eventi tetikle
             self.selenium.cdp.evaluate(f"""
-                const element = document.querySelector('{selector}');
-                if (element) {{
-                    const event = new MouseEvent('mouseenter', {{
-                        clientX: {hover_x},
-                        clientY: {hover_y},
-                        bubbles: true,
-                        cancelable: true
-                    }});
-                    element.dispatchEvent(event);
-                }}
+                (function() {{
+                    const element = document.querySelector('{selector}');
+                    if (element) {{
+                        const event = new MouseEvent('mouseenter', {{
+                            clientX: {hover_x},
+                            clientY: {hover_y},
+                            bubbles: true,
+                            cancelable: true
+                        }});
+                        element.dispatchEvent(event);
+                    }}
+                }})();
             """)
             
             # Hover süresi
